@@ -90,19 +90,21 @@ public struct MainView: View {
                             }
                         }
                         
-                        // Кнопка "Добавить аскезу"
-                        Button {
-                            showingCreateAskeza = true
-                        } label: {
-                            Circle()
-                                .fill(AskezaTheme.accentColor)
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.white)
-                                )
-                                .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                        // Кнопка "Добавить аскезу" - не показываем на экране желаний
+                        if viewModel.selectedTab != .wishes {
+                            Button {
+                                showingCreateAskeza = true
+                            } label: {
+                                Circle()
+                                    .fill(AskezaTheme.accentColor)
+                                    .frame(width: 50, height: 50)
+                                    .overlay(
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                            }
                         }
                     }
                     .padding(.trailing, 20)
