@@ -73,19 +73,21 @@ public struct MainView: View {
                     Spacer()
                     
                     HStack(spacing: 16) {
-                        // Кнопка "Загадать желание"
-                        Button {
-                            showingAddWish = true
-                        } label: {
-                            Circle()
-                                .fill(Color("PurpleAccent"))
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Image(systemName: "gift.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.white)
-                                )
-                                .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                        // Кнопка "Загадать желание" - показываем только на экране желаний
+                        if viewModel.selectedTab == .wishes {
+                            Button {
+                                showingAddWish = true
+                            } label: {
+                                Circle()
+                                    .fill(Color("PurpleAccent"))
+                                    .frame(width: 50, height: 50)
+                                    .overlay(
+                                        Image(systemName: "gift.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+                            }
                         }
                         
                         // Кнопка "Добавить аскезу"
