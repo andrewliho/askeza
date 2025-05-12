@@ -117,15 +117,8 @@ struct AddWishView: View {
                             .foregroundColor(AskezaTheme.secondaryTextColor)
                             .multilineTextAlignment(.center)
                         
-                        VStack(spacing: 12) {
-                            AskezaButton(title: "Создать новую аскезу") {
-                                showingCreateAskeza = true
-                            }
-                            
-                            AskezaButton(title: "Выбрать из мастерской") {
-                                isPresented = false
-                                viewModel.selectedTab = .workshop
-                            }
+                        AskezaButton(title: "Создать новую аскезу") {
+                            showingCreateAskeza = true
                         }
                     }
                     .padding()
@@ -205,14 +198,15 @@ struct AddWishView: View {
         }
         .sheet(isPresented: $showingCreateAskeza) {
             NavigationView {
-                CreateAskezaView(
-                    viewModel: viewModel, 
+                // Используем AskezaCreationFlowView вместо CreateAskezaView для единообразия с основной функцией добавления аскез
+                AskezaCreationFlowView(
+                    viewModel: viewModel,
                     isPresented: $showingCreateAskeza,
-                    category: .custom
-                ) { newAskeza in
-                    selectedAskeza = newAskeza
-                    showingWishInput = true
-                }
+                    onCreated: { newAskeza in
+                        selectedAskeza = newAskeza
+                        showingWishInput = true
+                    }
+                )
             }
         }
     }
