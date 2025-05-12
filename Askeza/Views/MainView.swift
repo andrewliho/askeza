@@ -7,6 +7,8 @@ public struct MainView: View {
     @State private var showingCreateAskeza = false
     @State private var showingAddWish = false
     @State private var showingSettings = false
+    // Добавляем флаг для отслеживания, была ли показана форма создания аскезы
+    @State private var wasAskezaSheetPresented = false
     
     public init() {}
     
@@ -93,6 +95,7 @@ public struct MainView: View {
                         // Кнопка "Добавить аскезу" - не показываем на экране желаний
                         if viewModel.selectedTab != .wishes {
                             Button {
+                                // Принудительно показываем форму создания аскезы
                                 showingCreateAskeza = true
                             } label: {
                                 Circle()
@@ -117,18 +120,36 @@ public struct MainView: View {
                 SettingsView(viewModel: viewModel)
             }
         }
-        .sheet(isPresented: $showingCreateAskeza) {
+        .sheet(isPresented: $showingCreateAskeza, onDismiss: {
+            // При закрытии формы сбрасываем флаг
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                wasAskezaSheetPresented = false
+            }
+        }) {
             NavigationView {
                 AskezaCreationFlowView(
                     viewModel: viewModel,
                     isPresented: $showingCreateAskeza,
                     onCreated: nil
                 )
+                .onAppear {
+                    // При появлении формы устанавливаем флаг
+                    wasAskezaSheetPresented = true
+                }
             }
         }
         .sheet(isPresented: $showingAddWish) {
             NavigationView {
                 AddWishView(viewModel: viewModel, isPresented: $showingAddWish)
+            }
+        }
+        .onChange(of: showingCreateAskeza) { newValue in
+            // Если форма больше не показывается, но флаг все еще указывает что она была открыта,
+            // возможно произошло некорректное закрытие - принудительно открываем снова
+            if !newValue && wasAskezaSheetPresented {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    showingCreateAskeza = true
+                }
             }
         }
     }

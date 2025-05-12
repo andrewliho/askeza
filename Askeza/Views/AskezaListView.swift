@@ -10,6 +10,7 @@ public struct AskezaListView: View {
     @State private var askezaToDelete: Askeza?
     @State private var showCopiedToast = false
     @State private var searchText: String = ""
+    @State private var isExtendingAskeza = false
     
     private enum AskezaFilter: String, CaseIterable {
         case active = "Активные"
@@ -140,6 +141,7 @@ public struct AskezaListView: View {
                                             },
                                             onExtend: {
                                                 selectedAskeza = askeza
+                                                isExtendingAskeza = true
                                                 showCreateAskeza = true
                                             },
                                             onProgressUpdate: { newProgress in
@@ -197,19 +199,22 @@ public struct AskezaListView: View {
                 Text("Это действие нельзя отменить")
             }
         }
-        .sheet(isPresented: $showCreateAskeza) {
+        .sheet(isPresented: $showCreateAskeza, onDismiss: {
+            isExtendingAskeza = false
+        }) {
             NavigationView {
-                if let askeza = selectedAskeza, 
+                if isExtendingAskeza, let askeza = selectedAskeza, 
                    selectedFilter == .active {
-                    // Режим продления для активной аскезы
                     CreateAskezaView(
                         viewModel: viewModel,
                         isPresented: $showCreateAskeza,
                         existingAskeza: askeza,
                         category: askeza.category
                     )
+                    .onDisappear {
+                        isExtendingAskeza = false
+                    }
                 } else {
-                    // Используем AskezaCreationFlowView вместо CreateAskezaView
                     AskezaCreationFlowView(
                         viewModel: viewModel,
                         isPresented: $showCreateAskeza,
