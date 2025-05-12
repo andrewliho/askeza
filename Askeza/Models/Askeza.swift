@@ -106,13 +106,13 @@ public enum AskezaCategory: String, Codable, CaseIterable, Identifiable {
     
     var mainColor: Color {
         switch self {
-        case .telo:            return Color(red: 0.8, green: 0.4, blue: 0.0) // Оранжево-красный
-        case .um:              return Color(red: 0.0, green: 0.4, blue: 0.8) // Ярко-синий
-        case .dukh:            return Color(red: 0.8, green: 0.6, blue: 0.0) // Золотисто-жёлтый
-        case .otnosheniya:     return Color(red: 0.7, green: 0.2, blue: 0.8) // Пурпурный
-        case .osvobozhdenie:   return Color(red: 0.0, green: 0.8, blue: 0.4) // Ярко-зелёный
-        case .velikie:         return Color(red: 0.4, green: 0.2, blue: 0.8) // Индиго
-        case .custom:          return Color.gray
+        case .telo:            return Color("TeloColor")
+        case .um:              return Color("UmColor")
+        case .dukh:            return Color("DukhColor")
+        case .otnosheniya:     return Color("OtnosheniyaColor")
+        case .osvobozhdenie:   return Color("OsvobozhdenieColor")
+        case .velikie:         return Color("VelikieColor")
+        case .custom:          return Color("CustomColor")
         }
     }
     

@@ -174,27 +174,6 @@ public struct AskezaListView: View {
                             .padding()
                         }
                     }
-                    
-                    // Add Button
-                    Button(action: { 
-                        selectedAskeza = nil // Сбрасываем selectedAskeza перед созданием новой аскезы
-                        showCreateAskeza = true 
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                
-                            Text("Добавить аскезу")
-                                .font(AskezaTheme.bodyFont)
-                        }
-                        .foregroundColor(AskezaTheme.accentColor)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(AskezaTheme.buttonBackground)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                    }
                 }
             }
             .navigationDestination(isPresented: $showAskezaDetail) {
@@ -262,11 +241,11 @@ public struct AskezaListView: View {
     private var emptyStateMessage: String {
         switch selectedFilter {
         case .active:
-            return "Нет активных аскез\nНачните новую аскезу, нажав + "
+            return "Нет активных аскез\nСоздайте новую аскезу"
         case .completed:
             return "Нет завершённых аскез\nЗавершите аскезу, чтобы увидеть её здесь"
         case .lifetime:
-            return "Нет пожизненных аскез\nСоздайте пожизненную аскезу, нажав + "
+            return "Нет пожизненных аскез\nСоздайте пожизненную аскезу"
         }
     }
 }

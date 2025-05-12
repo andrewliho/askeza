@@ -62,23 +62,6 @@ public struct WishesView: View {
                         .padding()
                     }
                 }
-                
-                // Add Button
-                Button(action: { showingAddWish = true }) {
-                    HStack {
-                        Image(systemName: "gift.fill")
-                            .font(.system(size: 20))
-                        Text("Загадать желание")
-                            .font(AskezaTheme.bodyFont)
-                    }
-                    .foregroundColor(AskezaTheme.accentColor)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(AskezaTheme.buttonBackground)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                }
             }
         }
         .navigationTitle("Ваши Желания")

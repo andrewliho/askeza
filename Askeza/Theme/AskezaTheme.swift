@@ -2,12 +2,12 @@ import SwiftUI
 
 struct AskezaTheme {
     // MARK: - Colors
-    static let backgroundColor = Color(red: 0.05, green: 0.05, blue: 0.1) // Тёмный фон
+    static let backgroundColor = Color("BackgroundColor")
     static let textColor = Color.white
     static let secondaryTextColor = Color(white: 0.7)
-    static let accentColor = Color(red: 0.8, green: 0.7, blue: 0.5) // Gold-gray
-    static let intentColor = Color(red: 0.8, green: 0.6, blue: 0.4) // Бронзовый для интенций и "Своя аскеза"
-    static let buttonBackground = Color(red: 0.15, green: 0.15, blue: 0.2)
+    static let accentColor = Color("AccentColor")
+    static let intentColor = Color("IntentColor") // Бронзовый для интенций и "Своя аскеза"
+    static let buttonBackground = Color("ButtonBackground")
     static let successColor = Color(red: 0.4, green: 0.8, blue: 0.6) // Пастельный зеленый
     static let errorColor = Color(red: 0.9, green: 0.6, blue: 0.6) // Пастельный красный
     static let warningColor = Color(red: 0.95, green: 0.8, blue: 0.5) // Пастельный оранжевый

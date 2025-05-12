@@ -220,7 +220,7 @@ private struct WishSectionView: View {
                     Text("Статус желания")
                         .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(Color(hex: "9370DB"))
+                .foregroundColor(Color("PurpleAccent"))
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
             }
@@ -352,17 +352,17 @@ private struct ActionButton: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Circle()
-                    .fill(Color(hex: "D4C4A3").opacity(0.15))
+                    .fill(Color("GoldAccent").opacity(0.15))
                     .frame(width: 40, height: 40)
                     .overlay(
                         Image(systemName: icon)
                             .font(.system(size: 16))
-                            .foregroundColor(Color(hex: "D4C4A3"))
+                            .foregroundColor(Color("GoldAccent"))
                     )
                 
                 Text(text)
                     .font(.system(size: 10))
-                    .foregroundColor(Color(hex: "D4C4A3"))
+                    .foregroundColor(Color("GoldAccent"))
             }
         }
     }
@@ -465,13 +465,13 @@ fileprivate struct ProgressSectionView: View {
                     ZStack(alignment: .leading) {
                         Rectangle()
                             .fill(askeza.duration == .lifetime ? 
-                                Color(hex: "9370DB").opacity(0.2) :
+                                Color("PurpleAccent").opacity(0.2) :
                                 AskezaTheme.accentColor.opacity(0.2))
                             .cornerRadius(6)
                         
                         Rectangle()
                             .fill(askeza.duration == .lifetime ? 
-                                Color(hex: "9370DB") :
+                                Color("PurpleAccent") :
                                 AskezaTheme.accentColor)
                             .frame(width: calculateProgressWidth(geometry: geometry))
                             .cornerRadius(6)
