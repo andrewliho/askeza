@@ -10,7 +10,10 @@ public struct AskezaListView: View {
     @State private var askezaToDelete: Askeza?
     @State private var showCopiedToast = false
     @State private var searchText: String = ""
-    @State private var isExtendingAskeza = false
+    
+    // Внутренний флаг для продления аскезы
+    @State private var showExtendForm = false
+    @State private var askezaToExtend: Askeza?
     
     private enum AskezaFilter: String, CaseIterable {
         case active = "Активные"
@@ -140,9 +143,9 @@ public struct AskezaListView: View {
                                                 viewModel.completeAskeza(askeza)
                                             },
                                             onExtend: {
-                                                selectedAskeza = askeza
-                                                isExtendingAskeza = true
-                                                showCreateAskeza = true
+                                                // Используем отдельные флаги для операции продления
+                                                askezaToExtend = askeza
+                                                showExtendForm = true
                                             },
                                             onProgressUpdate: { newProgress in
                                                 viewModel.updateProgress(askeza, newProgress: newProgress)
@@ -199,31 +202,30 @@ public struct AskezaListView: View {
                 Text("Это действие нельзя отменить")
             }
         }
-        .sheet(isPresented: $showCreateAskeza, onDismiss: {
-            isExtendingAskeza = false
-        }) {
+        // Отдельная sheet для продления аскезы
+        .sheet(isPresented: $showExtendForm) {
             NavigationView {
-                if isExtendingAskeza, let askeza = selectedAskeza, 
-                   selectedFilter == .active {
+                if let askeza = askezaToExtend, selectedFilter == .active {
                     CreateAskezaView(
                         viewModel: viewModel,
-                        isPresented: $showCreateAskeza,
+                        isPresented: $showExtendForm,
                         existingAskeza: askeza,
                         category: askeza.category
                     )
-                    .onDisappear {
-                        isExtendingAskeza = false
-                    }
-                } else {
-                    AskezaCreationFlowView(
-                        viewModel: viewModel,
-                        isPresented: $showCreateAskeza,
-                        onCreated: { newAskeza in
-                            selectedAskeza = newAskeza
-                            showAskezaDetail = true
-                        }
-                    )
                 }
+            }
+        }
+        // Оставляем sheet для создания новой аскезы из внешних источников (MainView)
+        .sheet(isPresented: $showCreateAskeza) {
+            NavigationView {
+                AskezaCreationFlowView(
+                    viewModel: viewModel,
+                    isPresented: $showCreateAskeza,
+                    onCreated: { newAskeza in
+                        selectedAskeza = newAskeza
+                        showAskezaDetail = true
+                    }
+                )
             }
         }
         .overlay(

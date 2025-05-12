@@ -4,11 +4,14 @@ public struct MainView: View {
     @EnvironmentObject private var viewModel: AskezaViewModel
     // Временно отключено до оформления Apple Developer Program
     // @EnvironmentObject private var authModel: AuthenticationViewModel
-    @State private var showingCreateAskeza = false
+    
+    // Разделяем флаги для каждого view
+    @State private var showingGlobalCreateAskeza = false
     @State private var showingAddWish = false
     @State private var showingSettings = false
-    // Добавляем флаг для отслеживания, была ли показана форма создания аскезы
-    @State private var wasAskezaSheetPresented = false
+    
+    // Флаги для передачи в другие view
+    @State private var listShowCreateAskeza = false
     
     public init() {}
     
@@ -16,7 +19,7 @@ public struct MainView: View {
         ZStack {
             TabView(selection: $viewModel.selectedTab) {
                 NavigationView {
-                    AskezaListView(viewModel: viewModel, showCreateAskeza: $showingCreateAskeza)
+                    AskezaListView(viewModel: viewModel, showCreateAskeza: $listShowCreateAskeza)
                         /* Временно отключено
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
@@ -95,8 +98,8 @@ public struct MainView: View {
                         // Кнопка "Добавить аскезу" - не показываем на экране желаний
                         if viewModel.selectedTab != .wishes {
                             Button {
-                                // Принудительно показываем форму создания аскезы
-                                showingCreateAskeza = true
+                                // Используем отдельный флаг для FloatingButton
+                                showingGlobalCreateAskeza = true
                             } label: {
                                 Circle()
                                     .fill(AskezaTheme.accentColor)
@@ -120,36 +123,19 @@ public struct MainView: View {
                 SettingsView(viewModel: viewModel)
             }
         }
-        .sheet(isPresented: $showingCreateAskeza, onDismiss: {
-            // При закрытии формы сбрасываем флаг
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                wasAskezaSheetPresented = false
-            }
-        }) {
+        // Полностью отдельная форма создания аскезы для кнопки в MainView
+        .sheet(isPresented: $showingGlobalCreateAskeza) {
             NavigationView {
                 AskezaCreationFlowView(
                     viewModel: viewModel,
-                    isPresented: $showingCreateAskeza,
+                    isPresented: $showingGlobalCreateAskeza,
                     onCreated: nil
                 )
-                .onAppear {
-                    // При появлении формы устанавливаем флаг
-                    wasAskezaSheetPresented = true
-                }
             }
         }
         .sheet(isPresented: $showingAddWish) {
             NavigationView {
                 AddWishView(viewModel: viewModel, isPresented: $showingAddWish)
-            }
-        }
-        .onChange(of: showingCreateAskeza) { newValue in
-            // Если форма больше не показывается, но флаг все еще указывает что она была открыта,
-            // возможно произошло некорректное закрытие - принудительно открываем снова
-            if !newValue && wasAskezaSheetPresented {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    showingCreateAskeza = true
-                }
             }
         }
     }
