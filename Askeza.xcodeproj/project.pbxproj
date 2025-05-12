@@ -1,0 +1,559 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		115EE1C12DC4EBB200B37E2B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 115EE1AB2DC4EBB000B37E2B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 115EE1B22DC4EBB000B37E2B;
+			remoteInfo = Askeza;
+		};
+		115EE1CB2DC4EBB200B37E2B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 115EE1AB2DC4EBB000B37E2B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 115EE1B22DC4EBB000B37E2B;
+			remoteInfo = Askeza;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		115EE1B32DC4EBB000B37E2B /* Askeza.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Askeza.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		115EE1C02DC4EBB200B37E2B /* AskezaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AskezaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		115EE1CA2DC4EBB200B37E2B /* AskezaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AskezaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		115EE1B52DC4EBB000B37E2B /* Askeza */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Askeza;
+			sourceTree = "<group>";
+		};
+		115EE1C32DC4EBB200B37E2B /* AskezaTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AskezaTests;
+			sourceTree = "<group>";
+		};
+		115EE1CD2DC4EBB200B37E2B /* AskezaUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AskezaUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		115EE1B02DC4EBB000B37E2B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1BD2DC4EBB200B37E2B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1C72DC4EBB200B37E2B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		115EE1AA2DC4EBB000B37E2B = {
+			isa = PBXGroup;
+			children = (
+				115EE1B52DC4EBB000B37E2B /* Askeza */,
+				115EE1C32DC4EBB200B37E2B /* AskezaTests */,
+				115EE1CD2DC4EBB200B37E2B /* AskezaUITests */,
+				115EE1B42DC4EBB000B37E2B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		115EE1B42DC4EBB000B37E2B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				115EE1B32DC4EBB000B37E2B /* Askeza.app */,
+				115EE1C02DC4EBB200B37E2B /* AskezaTests.xctest */,
+				115EE1CA2DC4EBB200B37E2B /* AskezaUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		115EE1B22DC4EBB000B37E2B /* Askeza */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 115EE1D42DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "Askeza" */;
+			buildPhases = (
+				115EE1AF2DC4EBB000B37E2B /* Sources */,
+				115EE1B02DC4EBB000B37E2B /* Frameworks */,
+				115EE1B12DC4EBB000B37E2B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				115EE1B52DC4EBB000B37E2B /* Askeza */,
+			);
+			name = Askeza;
+			packageProductDependencies = (
+			);
+			productName = Askeza;
+			productReference = 115EE1B32DC4EBB000B37E2B /* Askeza.app */;
+			productType = "com.apple.product-type.application";
+		};
+		115EE1BF2DC4EBB200B37E2B /* AskezaTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 115EE1D72DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "AskezaTests" */;
+			buildPhases = (
+				115EE1BC2DC4EBB200B37E2B /* Sources */,
+				115EE1BD2DC4EBB200B37E2B /* Frameworks */,
+				115EE1BE2DC4EBB200B37E2B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				115EE1C22DC4EBB200B37E2B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				115EE1C32DC4EBB200B37E2B /* AskezaTests */,
+			);
+			name = AskezaTests;
+			packageProductDependencies = (
+			);
+			productName = AskezaTests;
+			productReference = 115EE1C02DC4EBB200B37E2B /* AskezaTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		115EE1C92DC4EBB200B37E2B /* AskezaUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 115EE1DA2DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "AskezaUITests" */;
+			buildPhases = (
+				115EE1C62DC4EBB200B37E2B /* Sources */,
+				115EE1C72DC4EBB200B37E2B /* Frameworks */,
+				115EE1C82DC4EBB200B37E2B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				115EE1CC2DC4EBB200B37E2B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				115EE1CD2DC4EBB200B37E2B /* AskezaUITests */,
+			);
+			name = AskezaUITests;
+			packageProductDependencies = (
+			);
+			productName = AskezaUITests;
+			productReference = 115EE1CA2DC4EBB200B37E2B /* AskezaUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		115EE1AB2DC4EBB000B37E2B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					115EE1B22DC4EBB000B37E2B = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					115EE1BF2DC4EBB200B37E2B = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 115EE1B22DC4EBB000B37E2B;
+					};
+					115EE1C92DC4EBB200B37E2B = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 115EE1B22DC4EBB000B37E2B;
+					};
+				};
+			};
+			buildConfigurationList = 115EE1AE2DC4EBB000B37E2B /* Build configuration list for PBXProject "Askeza" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 115EE1AA2DC4EBB000B37E2B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 115EE1B42DC4EBB000B37E2B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				115EE1B22DC4EBB000B37E2B /* Askeza */,
+				115EE1BF2DC4EBB200B37E2B /* AskezaTests */,
+				115EE1C92DC4EBB200B37E2B /* AskezaUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		115EE1B12DC4EBB000B37E2B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1BE2DC4EBB200B37E2B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1C82DC4EBB200B37E2B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		115EE1AF2DC4EBB000B37E2B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1BC2DC4EBB200B37E2B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		115EE1C62DC4EBB200B37E2B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		115EE1C22DC4EBB200B37E2B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 115EE1B22DC4EBB000B37E2B /* Askeza */;
+			targetProxy = 115EE1C12DC4EBB200B37E2B /* PBXContainerItemProxy */;
+		};
+		115EE1CC2DC4EBB200B37E2B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 115EE1B22DC4EBB000B37E2B /* Askeza */;
+			targetProxy = 115EE1CB2DC4EBB200B37E2B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		115EE1D22DC4EBB200B37E2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		115EE1D32DC4EBB200B37E2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		115EE1D52DC4EBB200B37E2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Askeza/Askeza.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8RG79U82HT;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.Askeza";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		115EE1D62DC4EBB200B37E2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Askeza/Askeza.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8RG79U82HT;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.Askeza";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		115EE1D82DC4EBB200B37E2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.AskezaTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Askeza.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Askeza";
+			};
+			name = Debug;
+		};
+		115EE1D92DC4EBB200B37E2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.AskezaTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Askeza.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Askeza";
+			};
+			name = Release;
+		};
+		115EE1DB2DC4EBB200B37E2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.AskezaUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Askeza;
+			};
+			name = Debug;
+		};
+		115EE1DC2DC4EBB200B37E2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Dogma-Prod.AskezaUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Askeza;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		115EE1AE2DC4EBB000B37E2B /* Build configuration list for PBXProject "Askeza" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				115EE1D22DC4EBB200B37E2B /* Debug */,
+				115EE1D32DC4EBB200B37E2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		115EE1D42DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "Askeza" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				115EE1D52DC4EBB200B37E2B /* Debug */,
+				115EE1D62DC4EBB200B37E2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		115EE1D72DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "AskezaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				115EE1D82DC4EBB200B37E2B /* Debug */,
+				115EE1D92DC4EBB200B37E2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		115EE1DA2DC4EBB200B37E2B /* Build configuration list for PBXNativeTarget "AskezaUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				115EE1DB2DC4EBB200B37E2B /* Debug */,
+				115EE1DC2DC4EBB200B37E2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 115EE1AB2DC4EBB000B37E2B /* Project object */;
+}
