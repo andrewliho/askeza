@@ -1,18 +1,19 @@
 import Foundation
 import SwiftUI
+import SwiftData
 
-// Эта модель будет преобразована в SwiftData модель в будущем
-// Сейчас используем обычную структуру для совместимости с текущим кодом
-public struct PracticeTemplate: Identifiable, Codable {
-    public let id: UUID
-    public let templateId: String  // Уникальный строковой идентификатор для шаблона (например, "cold-shower-14")
-    public let title: String
-    public let category: AskezaCategory
-    public let duration: Int       // дни (0 = lifetime)
-    public let quote: String
-    public let difficulty: Int     // 1-3
-    public let description: String
-    public let intention: String
+@Model
+public class PracticeTemplate {
+    @Attribute(.unique) public var id: UUID
+    public var templateId: String  // Уникальный строковой идентификатор для шаблона (например, "cold-shower-14")
+    public var title: String
+    public var category: AskezaCategory
+    public var duration: Int       // дни (0 = lifetime)
+    public var quote: String
+    public var difficulty: Int     // 1-3
+    public var description: String
+    public var intention: String
+    public var courseID: UUID?     // Связь с курсом, если шаблон является частью курса
     
     public init(
         id: UUID = UUID(),
@@ -23,7 +24,8 @@ public struct PracticeTemplate: Identifiable, Codable {
         quote: String,
         difficulty: Int,
         description: String,
-        intention: String
+        intention: String,
+        courseID: UUID? = nil
     ) {
         self.id = id
         self.templateId = templateId
@@ -34,6 +36,7 @@ public struct PracticeTemplate: Identifiable, Codable {
         self.difficulty = difficulty
         self.description = description
         self.intention = intention
+        self.courseID = courseID
     }
     
     // Для создания Askeza из шаблона
@@ -77,9 +80,10 @@ public enum TemplateStatus: String, Codable {
     }
 }
 
-public struct TemplateProgress: Identifiable, Codable {
-    public let id: UUID
-    public let templateID: UUID
+@Model
+public class TemplateProgress {
+    @Attribute(.unique) public var id: UUID
+    public var templateID: UUID
     public var dateStarted: Date?
     public var daysCompleted: Int
     public var timesCompleted: Int
@@ -118,14 +122,15 @@ public struct TemplateProgress: Identifiable, Codable {
     }
 }
 
-// Опциональная модель для курсов (цепочек практик)
-public struct CoursePath: Identifiable, Codable {
-    public let id: UUID
-    public let title: String
-    public let description: String
-    public let templateIDs: [UUID]  // ID шаблонов в порядке прохождения
-    public let category: AskezaCategory
-    public let difficulty: Int     // 1-3
+// Модель для курсов (цепочек практик)
+@Model
+public class CoursePath {
+    @Attribute(.unique) public var id: UUID
+    public var title: String
+    public var description: String
+    public var templateIDs: [UUID]  // ID шаблонов в порядке прохождения
+    public var category: AskezaCategory
+    public var difficulty: Int     // 1-3
     
     public init(
         id: UUID = UUID(),
@@ -141,5 +146,43 @@ public struct CoursePath: Identifiable, Codable {
         self.templateIDs = templateIDs
         self.category = category
         self.difficulty = difficulty
+    }
+}
+
+// Модель для профиля пользователя с геймификацией
+@Model
+public class UserProfile {
+    @Attribute(.unique) public var id: UUID
+    public var nickname: String
+    public var avatarURL: URL?
+    public var xp: Int
+    public var level: Int
+    
+    public init(
+        id: UUID = UUID(),
+        nickname: String,
+        avatarURL: URL? = nil,
+        xp: Int = 0,
+        level: Int = 1
+    ) {
+        self.id = id
+        self.nickname = nickname
+        self.avatarURL = avatarURL
+        self.xp = xp
+        self.level = level
+    }
+    
+    // Вычисляем уровень на основе XP (каждые 100 XP = новый уровень)
+    public func calculateLevel() -> Int {
+        return max(1, xp / 100 + 1)
+    }
+    
+    // Добавляем XP и обновляем уровень
+    public func addXP(_ amount: Int) {
+        let oldLevel = level
+        xp += amount
+        level = calculateLevel()
+        
+        // TODO: Если произошло повышение уровня, запустить анимацию
     }
 } 
