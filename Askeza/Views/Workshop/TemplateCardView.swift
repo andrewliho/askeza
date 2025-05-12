@@ -23,122 +23,163 @@ struct TemplateCardView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Заголовок с иконкой статуса
-            HStack {
-                Image(systemName: status.icon)
-                    .foregroundColor(status.color)
-                
-                Text(template.title)
-                    .font(.headline)
-                    .foregroundColor(AskezaTheme.textColor)
-            }
-            
-            // Категория и сложность
-            HStack {
-                Image(systemName: template.category.systemImage)
-                    .foregroundColor(template.category.mainColor)
-                
-                Text(template.category.rawValue)
-                    .font(.subheadline)
-                    .foregroundColor(AskezaTheme.secondaryTextColor)
+        VStack(alignment: .leading, spacing: 4) {
+            // Верхняя строка: количество дней и статус
+            HStack(alignment: .top) {
+                // Бейдж с количеством дней - делаем меньше
+                Text(template.duration == 0 ? "∞" : "\(template.duration) дн.")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(template.category.mainColor)
+                    )
                 
                 Spacer()
                 
-                Text("Сложность: ")
-                    .font(.caption)
-                    .foregroundColor(AskezaTheme.secondaryTextColor)
-                
-                difficultyView(level: template.difficulty)
+                // Статус - более компактный
+                if status != .notStarted {
+                    HStack(spacing: 2) {
+                        Image(systemName: status.icon)
+                            .font(.system(size: 11))
+                            .foregroundColor(status.color)
+                        
+                        Text(statusText(for: status))
+                            .font(.system(size: 11))
+                            .foregroundColor(status.color)
+                    }
+                }
             }
             
-            // Цитата
+            // Заголовок - на одну строку
+            Text(template.title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(AskezaTheme.textColor)
+                .lineLimit(1)
+                .padding(.vertical, 2)
+            
+            // Категория и сложность в одной строке
+            HStack {
+                // Категория
+                HStack(spacing: 3) {
+                    Image(systemName: template.category.systemImage)
+                        .font(.system(size: 11))
+                        .foregroundColor(template.category.mainColor)
+                    
+                    Text(template.category.rawValue)
+                        .font(.system(size: 11))
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                }
+                
+                Spacer()
+                
+                // Только звезды без подписи (чтобы сэкономить место)
+                HStack(spacing: 0) {
+                    ForEach(1...5, id: \.self) { i in
+                        Image(systemName: i <= template.difficulty ? "star.fill" : "star")
+                            .font(.system(size: 8))
+                            .foregroundColor(i <= template.difficulty ? .yellow : Color.gray.opacity(0.3))
+                    }
+                }
+            }
+            .padding(.vertical, 1) // Минимальный вертикальный отступ
+            
+            // Цитата - уменьшаем высоту и отступы
             Text("\"\(template.quote)\"")
-                .font(.system(size: 14, weight: .light, design: .serif))
+                .font(.system(size: 10, weight: .light, design: .serif))
                 .italic()
                 .foregroundColor(AskezaTheme.intentColor)
-                .padding(.vertical, 4)
+                .lineLimit(1)
+                .padding(.vertical, 0) // Убираем вертикальный отступ
             
             // Прогресс (если есть)
             if let progress = progress, status == .inProgress {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Прогресс: \(Int(progressPercentage * 100))%")
-                        .font(.caption)
+                        .font(.system(size: 10))
                         .foregroundColor(AskezaTheme.secondaryTextColor)
                     
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 2)
                                 .fill(Color.gray.opacity(0.3))
-                                .frame(height: 8)
+                                .frame(height: 4)
                             
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 2)
                                 .fill(status.color)
-                                .frame(width: geometry.size.width * progressPercentage, height: 8)
+                                .frame(width: geometry.size.width * progressPercentage, height: 4)
                         }
                     }
-                    .frame(height: 8)
+                    .frame(height: 4)
                     
                     if progress.currentStreak > 0 {
                         HStack {
                             Text("Серия: \(progress.currentStreak) дн.")
-                                .font(.caption)
+                                .font(.system(size: 10))
                                 .foregroundColor(AskezaTheme.secondaryTextColor)
                             
                             Image(systemName: "flame.fill")
                                 .foregroundColor(.orange)
-                                .font(.caption)
+                                .font(.system(size: 10))
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 1)
             }
             
             // Кнопки действий
             HStack {
                 Button(action: onStart) {
                     Text(buttonTitle)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                         .background(AskezaTheme.accentColor)
-                        .cornerRadius(8)
+                        .cornerRadius(6)
                 }
+                .buttonStyle(PlainButtonStyle())
                 
                 Spacer()
                 
                 Button(action: onShare) {
-                    HStack {
+                    HStack(spacing: 2) {
                         Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 11))
                         Text("Поделиться")
+                            .font(.system(size: 11))
                     }
-                    .font(.subheadline)
                     .foregroundColor(AskezaTheme.accentColor)
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding()
+        .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(AskezaTheme.buttonBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(borderColor, lineWidth: borderWidth)
         )
     }
     
     // MARK: - Helper Views
     
-    private func difficultyView(level: Int) -> some View {
-        HStack(spacing: 2) {
-            ForEach(1...3, id: \.self) { i in
-                Circle()
-                    .fill(i <= level ? difficultyColor(level: level) : Color.gray.opacity(0.3))
-                    .frame(width: 8, height: 8)
-            }
+    // Более краткий текст статуса
+    private func statusText(for status: TemplateStatus) -> String {
+        switch status {
+        case .notStarted:
+            return "Не начато"
+        case .inProgress:
+            return "Активная"
+        case .completed:
+            return "Завершено" 
+        case .mastered:
+            return "Мастер"
         }
     }
     
@@ -183,11 +224,11 @@ struct TemplateCardView: View {
     
     private func difficultyColor(level: Int) -> Color {
         switch level {
-        case 1:
+        case 1, 2:
             return .green
-        case 2:
+        case 3, 4:
             return .yellow
-        case 3:
+        case 5:
             return .red
         default:
             return .gray

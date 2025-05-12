@@ -32,6 +32,7 @@ public struct Askeza: Identifiable, Codable {
     public var category: AskezaCategory
     public var wish: String?
     public var wishStatus: WishStatus?
+    public var templateID: UUID?
     
     public init(id: UUID = UUID(),
          title: String,
@@ -42,7 +43,8 @@ public struct Askeza: Identifiable, Codable {
          isCompleted: Bool = false,
          category: AskezaCategory = .custom,
          wish: String? = nil,
-         wishStatus: WishStatus? = nil) {
+         wishStatus: WishStatus? = nil,
+         templateID: UUID? = nil) {
         self.id = id
         self.title = title
         self.intention = intention
@@ -53,6 +55,7 @@ public struct Askeza: Identifiable, Codable {
         self.category = category
         self.wish = wish
         self.wishStatus = wishStatus
+        self.templateID = templateID
     }
     
     public var daysLeft: Int? {

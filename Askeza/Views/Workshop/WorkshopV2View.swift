@@ -30,7 +30,7 @@ struct WorkshopV2View: View {
                     ScrollView {
                         LazyVStack(spacing: 24) {
                             // Рекомендации
-                            recommendationsSection
+                            // recommendationsSection
                             
                             // Курсы-пути
                             pathsSection
@@ -43,6 +43,7 @@ struct WorkshopV2View: View {
                                 selectedDifficulty: $selectedDifficulty,
                                 selectedDuration: $selectedDuration
                             )
+                            .padding(.top, 8) // Добавляем отступ сверху для лучшего разделения секций
                         }
                         .padding(.bottom, 50)
                     }
@@ -71,6 +72,17 @@ struct WorkshopV2View: View {
                 WorkshopOnboardingView()
             }
             .onAppear {
+                // Гарантируем, что шаблоны добавлены в хранилище
+                AdditionalTemplates.addTemplates(to: templateStore)
+                print("WorkshopV2View: добавлены шаблоны в хранилище")
+                
+                // Обновляем данные на экране для отображения всех шаблонов
+                let templates = templateStore.filteredTemplates()
+                print("WorkshopV2View: загружено \(templates.count) шаблонов для отображения")
+                
+                // Предзагружаем и гарантируем существование шаблона цифрового детокса
+                ensureDigitalDetoxExists()
+                
                 // Показываем онбординг при первом запуске
                 if !UserDefaults.standard.bool(forKey: "workshopOnboardingShown") {
                     showingOnboarding = true
@@ -124,27 +136,37 @@ struct WorkshopV2View: View {
         return Group {
             if !recommendations.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    sectionHeader("Рекомендуемые для вас")
+                    // Заголовок с дополнительной информацией
+                    HStack {
+                        Text("Рекомендуемые для вас")
+                            .font(.headline)
+                            .foregroundColor(AskezaTheme.textColor)
+                            .padding(.horizontal)
+                        
+                        Spacer()
+                        
+                        Text("\(recommendations.count) шаблонов")
+                            .font(.caption)
+                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                    }
+                    .padding(.horizontal)
                     
+                    // Горизонтальная прокрутка карточек
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(recommendations) { template in
-                                TemplateCardView(
+                                RecommendationCardWrapper(
                                     template: template,
-                                    progress: templateStore.getProgress(forTemplateID: template.id),
-                                    onStart: {
-                                        // TODO: Navigate to detail view
-                                    },
-                                    onShare: {
-                                        // TODO: Share sheet
-                                    }
+                                    templateStore: templateStore
                                 )
-                                .frame(width: 300)
+                                .frame(width: 300, height: 240) // Увеличиваем размер для лучшего отображения
                             }
                         }
                         .padding(.horizontal)
+                        .padding(.bottom, 8) // Добавляем отступ снизу для тени
                     }
                 }
+                .background(AskezaTheme.backgroundColor) // Обеспечиваем правильный фон
             }
         }
     }
@@ -217,6 +239,49 @@ struct WorkshopV2View: View {
         selectedDuration = nil
         searchText = ""
     }
+    
+    // Гарантируем существование шаблона цифрового детокса
+    private func ensureDigitalDetoxExists() {
+        print("🔍 WorkshopV2View - Проверка наличия шаблона цифрового детокса")
+        
+        // Проверяем существует ли шаблон
+        if templateStore.getTemplate(byTemplateId: "digital-detox-7") == nil {
+            print("⚠️ WorkshopV2View - Шаблон цифрового детокса не найден, создаем его")
+            
+            // Создаем шаблон с уникальным идентификатором
+            let digitalDetoxUUID = UUID()
+            print("🔑 WorkshopV2View - Назначен UUID для цифрового детокса: \(digitalDetoxUUID)")
+            
+            let digitalDetox = PracticeTemplate(
+                id: digitalDetoxUUID,
+                templateId: "digital-detox-7",
+                title: "7 дней цифрового детокса",
+                category: .osvobozhdenie,
+                duration: 7,
+                quote: "Иногда нужно отключиться, чтобы восстановить связь.",
+                difficulty: 2,
+                description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
+                intention: "Вернуть контроль над своим вниманием и временем"
+            )
+            
+            // Добавляем шаблон
+            templateStore.addTemplate(digitalDetox)
+            print("✅ WorkshopV2View - Шаблон цифрового детокса успешно создан")
+            
+            // Дополнительно загружаем данные для шаблона
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.templateStore.preloadTemplateData(for: "digital-detox-7")
+                print("✅ WorkshopV2View - Выполнена предзагрузка данных для шаблона цифрового детокса")
+            }
+        } else {
+            print("✅ WorkshopV2View - Шаблон цифрового детокса уже существует в базе")
+            
+            // Обновляем данные для существующего шаблона
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.templateStore.preloadTemplateData(for: "digital-detox-7")
+            }
+        }
+    }
 }
 
 struct FilterSheetView: View {
@@ -239,10 +304,21 @@ struct FilterSheetView: View {
                             .font(.headline)
                             .foregroundColor(AskezaTheme.textColor)
                         
-                        HStack(spacing: 16) {
-                            difficultyButton(1, label: "Легкий")
-                            difficultyButton(2, label: "Средний")
-                            difficultyButton(3, label: "Сложный")
+                        VStack(spacing: 12) {
+                            Text("Выберите уровень сложности:")
+                                .font(.caption)
+                                .foregroundColor(AskezaTheme.secondaryTextColor)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            HStack(spacing: 16) {
+                                difficultyButton(1, label: "★")
+                                difficultyButton(2, label: "★★")
+                                difficultyButton(3, label: "★★★")
+                            }
+                            HStack(spacing: 16) {
+                                difficultyButton(4, label: "★★★★")
+                                difficultyButton(5, label: "★★★★★")
+                            }
                         }
                     }
                     .padding()
@@ -255,11 +331,18 @@ struct FilterSheetView: View {
                             .font(.headline)
                             .foregroundColor(AskezaTheme.textColor)
                         
-                        HStack(spacing: 16) {
-                            durationButton(7, label: "7 дней")
-                            durationButton(14, label: "14 дней")
-                            durationButton(30, label: "30 дней")
-                            durationButton(0, label: "∞")
+                        VStack(spacing: 12) {
+                            Text("Выберите продолжительность практики:")
+                                .font(.caption)
+                                .foregroundColor(AskezaTheme.secondaryTextColor)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            HStack(spacing: 16) {
+                                durationButton(7, label: "7 дней")
+                                durationButton(14, label: "14 дней")
+                                durationButton(30, label: "30 дней")
+                                durationButton(0, label: "∞")
+                            }
                         }
                     }
                     .padding()
@@ -339,6 +422,7 @@ struct CoursePathCardView: View {
     
     var body: some View {
         Button(action: {
+            print("CoursePathCardView: Нажата карточка пути: \(course.title)")
             showingCourseDetail = true
         }) {
             VStack(alignment: .leading, spacing: 12) {
@@ -351,10 +435,11 @@ struct CoursePathCardView: View {
                         .font(.headline)
                         .foregroundColor(AskezaTheme.textColor)
                         .multilineTextAlignment(.leading)
+                        .lineLimit(1) // Ограничиваем в одну строку
                 }
                 
                 // Описание
-                Text(course.description)
+                Text(course.courseDescription)
                     .font(.subheadline)
                     .foregroundColor(AskezaTheme.secondaryTextColor)
                     .lineLimit(2)
@@ -390,10 +475,12 @@ struct CoursePathCardView: View {
                         .font(.caption)
                         .foregroundColor(AskezaTheme.secondaryTextColor)
                     
-                    ForEach(1...course.difficulty, id: \.self) { _ in
-                        Circle()
-                            .fill(difficultyColor(level: course.difficulty))
-                            .frame(width: 8, height: 8)
+                    HStack(spacing: 2) {
+                        ForEach(1...5, id: \.self) { i in
+                            Image(systemName: i <= course.difficulty ? "star.fill" : "star")
+                                .font(.system(size: 8))
+                                .foregroundColor(i <= course.difficulty ? .yellow : Color.gray.opacity(0.3))
+                        }
                     }
                 }
             }
@@ -401,6 +488,7 @@ struct CoursePathCardView: View {
             .background(AskezaTheme.buttonBackground)
             .cornerRadius(16)
         }
+        .buttonStyle(PlainButtonStyle()) // Добавляем для надежного срабатывания
         .sheet(isPresented: $showingCourseDetail) {
             CourseDetailView(course: course, templateStore: templateStore)
         }
@@ -408,11 +496,11 @@ struct CoursePathCardView: View {
     
     private func difficultyColor(level: Int) -> Color {
         switch level {
-        case 1:
+        case 1, 2:
             return .green
-        case 2:
+        case 3, 4:
             return .yellow
-        case 3:
+        case 5:
             return .red
         default:
             return .gray
@@ -455,10 +543,14 @@ struct CourseDetailView: View {
                             
                             // Сложность
                             HStack(spacing: 4) {
-                                ForEach(1...3, id: \.self) { i in
-                                    Circle()
-                                        .fill(i <= course.difficulty ? difficultyColor(level: course.difficulty) : Color.gray.opacity(0.3))
-                                        .frame(width: 12, height: 12)
+                                Text("Сложность:")
+                                    .font(.caption)
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                                
+                                ForEach(1...5, id: \.self) { i in
+                                    Image(systemName: i <= course.difficulty ? "star.fill" : "star")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(i <= course.difficulty ? .yellow : Color.gray.opacity(0.3))
                                 }
                             }
                         }
@@ -474,7 +566,7 @@ struct CourseDetailView: View {
                                 .font(.headline)
                                 .foregroundColor(AskezaTheme.textColor)
                             
-                            Text(course.description)
+                            Text(course.courseDescription)
                                 .foregroundColor(AskezaTheme.secondaryTextColor)
                         }
                         .padding()
@@ -529,6 +621,24 @@ struct CourseDetailView: View {
                             template: template,
                             templateStore: templateStore
                         )
+                        .onAppear {
+                            // При появлении sheet, загружаем данные
+                            print("🔍 CourseDetailView - onAppear вызван для sheet с шаблоном: \(template.title)")
+                            
+                            // Предварительно загружаем данные шаблона
+                            templateStore.preloadTemplateData(for: template.templateId)
+                            
+                            // При отображении digital-detox-7 добавляем дополнительную обработку
+                            if template.templateId == "digital-detox-7" || template.title.contains("цифрового детокса") {
+                                print("⚠️ CourseDetailView - Обнаружен особый шаблон: цифровой детокс")
+                                
+                                // Дополнительно загружаем данные с задержкой
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    print("🔄 CourseDetailView - Повторная загрузка данных для цифрового детокса")
+                                    templateStore.preloadTemplateData(for: "digital-detox-7")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -537,11 +647,11 @@ struct CourseDetailView: View {
     
     private func difficultyColor(level: Int) -> Color {
         switch level {
-        case 1:
+        case 1, 2:
             return .green
-        case 2:
+        case 3, 4:
             return .yellow
-        case 3:
+        case 5:
             return .red
         default:
             return .gray
@@ -562,7 +672,20 @@ struct CourseStepView: View {
     }
     
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            // Предварительно загружаем данные шаблона
+            print("🔍 CourseStepView - Выбран шаблон: \(template.title), ID: \(template.templateId)")
+            
+            // Проверяем, нужна ли специальная обработка для digital-detox-7
+            if template.templateId == "digital-detox-7" || template.title.contains("цифрового детокса") {
+                print("⚠️ CourseStepView - Обнаружен особый шаблон: цифровой детокс")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    onTap()
+                }
+            } else {
+                onTap()
+            }
+        }) {
             HStack(spacing: 16) {
                 // Статус индикатор
                 ZStack {
@@ -580,8 +703,9 @@ struct CourseStepView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(AskezaTheme.textColor)
+                        .lineLimit(1)
                     
-                    Text("\(template.duration) дней • \(difficultyText(template.difficulty))")
+                    Text("\(template.duration) дней • Сложность: \(difficultyText(template.difficulty))")
                         .font(.caption)
                         .foregroundColor(AskezaTheme.secondaryTextColor)
                 }
@@ -595,16 +719,21 @@ struct CourseStepView: View {
             .background(AskezaTheme.buttonBackground)
             .cornerRadius(12)
         }
+        .buttonStyle(PlainButtonStyle())
     }
     
     private func difficultyText(_ level: Int) -> String {
         switch level {
         case 1:
-            return "Легкий"
+            return "★"
         case 2:
-            return "Средний"
+            return "★★"
         case 3:
-            return "Сложный"
+            return "★★★"
+        case 4:
+            return "★★★★"
+        case 5:
+            return "★★★★★"
         default:
             return "Неизвестно"
         }
@@ -725,6 +854,275 @@ struct OnboardingPage {
     let title: String
     let description: String
     let imageName: String
+}
+
+// Отдельный компонент для обертки карточки рекомендации
+struct RecommendationCardWrapper: View {
+    let template: PracticeTemplate
+    let templateStore: PracticeTemplateStore
+    
+    @State private var showingTemplateDetail = false
+    @State private var showingShareSheet = false
+    @State private var shareText: String = ""
+    @State private var errorMessage: String = ""
+    @State private var showError = false
+    
+    var body: some View {
+        Button(action: {
+            print("RecommendationCardWrapper: Нажата карточка рекомендации: \(template.title)")
+            showingTemplateDetail = true
+        }) {
+            ZStack {
+                // Фон карточки с градиентом категории
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(
+                                colors: [
+                                    template.category.mainColor.opacity(0.1),
+                                    AskezaTheme.buttonBackground
+                                ]
+                            ),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    // Заголовок и категория
+                    HStack {
+                        // Иконка категории
+                        Image(systemName: template.category.systemImage)
+                            .font(.system(size: 24))
+                            .foregroundColor(template.category.mainColor)
+                            .frame(width: 36, height: 36)
+                            .background(template.category.mainColor.opacity(0.2))
+                            .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Заголовок
+                            Text(template.title)
+                                .font(.headline)
+                                .foregroundColor(AskezaTheme.textColor)
+                                .lineLimit(1)
+                            
+                            // Категория и дни
+                            HStack {
+                                Text(template.category.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                                
+                                Text("•")
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                                
+                                Text(durationText(template.duration))
+                                    .font(.caption)
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Сложность - звезды
+                        HStack(spacing: 2) {
+                            ForEach(1...5, id: \.self) { i in
+                                Image(systemName: i <= template.difficulty ? "star.fill" : "star")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(i <= template.difficulty ? .yellow : Color.gray.opacity(0.3))
+                            }
+                        }
+                    }
+                    
+                    // Цитата
+                    Text("\"\(template.quote)\"")
+                        .font(.system(size: 14, weight: .light, design: .serif))
+                        .italic()
+                        .lineLimit(2)
+                        .foregroundColor(AskezaTheme.intentColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(AskezaTheme.buttonBackground.opacity(0.5))
+                        .cornerRadius(8)
+                    
+                    // Прогресс (если есть)
+                    if let progress = templateStore.getProgress(forTemplateID: template.id) {
+                        progressView(progress)
+                    }
+                    
+                    // Кнопки действий
+                    HStack {
+                        Button(action: {
+                            print("RecommendationCardWrapper: Нажата кнопка 'Начать' для шаблона: \(template.title)")
+                            if let askeza = templateStore.startTemplate(template) {
+                                // Отправляем уведомление для добавления аскезы через асинхронный вызов
+                                Task {
+                                    // Используем NotificationCenter для передачи аскезы
+                                    // Это можно вызывать из любого контекста, так как NotificationCenter потокобезопасен
+                                    NotificationCenter.default.post(
+                                        name: Notification.Name("AddAskezaNotification"),
+                                        object: askeza
+                                    )
+                                    print("RecommendationCardWrapper: Отправлено уведомление о создании аскезы: \(askeza.title)")
+                                }
+                            } else {
+                                // Показываем ошибку, что шаблон уже активен
+                                errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                                showError = true
+                            }
+                        }) {
+                            Text(startButtonText)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(AskezaTheme.accentColor)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .alert("Внимание", isPresented: $showError) {
+                            Button("ОК", role: .cancel) {}
+                        } message: {
+                            Text(errorMessage)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            print("RecommendationCardWrapper: Нажата кнопка 'Поделиться' для шаблона: \(template.title)")
+                            shareTemplate(template)
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 14))
+                                .foregroundColor(AskezaTheme.accentColor)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding()
+            }
+            .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $showingTemplateDetail) {
+            TemplateDetailView(
+                template: template,
+                templateStore: templateStore
+            )
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(activityItems: [shareText])
+        }
+    }
+    
+    private var startButtonText: String {
+        let status = templateStore.getStatus(forTemplateID: template.id)
+        switch status {
+        case .notStarted: return "Начать"
+        case .inProgress: return "Продолжить"
+        case .completed: return "Повторить"
+        case .mastered: return "Начать снова"
+        }
+    }
+    
+    private func progressView(_ progress: TemplateProgress) -> some View {
+        let status = progress.status(templateDuration: template.duration)
+        let progressPercent = calculateProgressPercentage(progress)
+        
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                // Статус с иконкой
+                Label(
+                    title: { Text(status == .inProgress ? "Активная" : status.rawValue).font(.caption) },
+                    icon: { Image(systemName: status.icon).font(.system(size: 10)) }
+                )
+                .foregroundColor(status.color)
+                
+                Spacer()
+                
+                // Процент
+                if status == .inProgress {
+                    Text("\(Int(progressPercent * 100))%")
+                        .font(.caption.bold())
+                        .foregroundColor(status.color)
+                }
+            }
+            
+            // Прогресс бар для активных шаблонов
+            if status == .inProgress {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 6)
+                            .cornerRadius(3)
+                        
+                        Rectangle()
+                            .fill(status.color)
+                            .frame(width: geometry.size.width * progressPercent, height: 6)
+                            .cornerRadius(3)
+                    }
+                }
+                .frame(height: 6)
+                
+                // Показываем дни и серию
+                HStack {
+                    Text("День \(progress.daysCompleted)\(template.duration > 0 ? " из \(template.duration)" : "")")
+                        .font(.caption)
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                    
+                    Spacer()
+                    
+                    if progress.currentStreak > 0 {
+                        HStack(spacing: 2) {
+                            Text("Серия: \(progress.currentStreak)")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func calculateProgressPercentage(_ progress: TemplateProgress) -> Double {
+        guard template.duration > 0 else { return 0 }
+        return min(1.0, Double(progress.daysCompleted) / Double(template.duration))
+    }
+    
+    private func shareTemplate(_ template: PracticeTemplate) {
+        // Ограничиваем длину цитаты для шаринга
+        let quote = template.quote.count > 50 ? template.quote.prefix(50) + "..." : template.quote
+        
+        shareText = """
+        🧘‍♂️ Аскеза: \(template.title)
+        📝 Категория: \(template.category.rawValue)
+        ⏳ Длительность: \(durationText(template.duration))
+        ✨ Цитата: "\(quote)"
+        
+        #Askeza #\(template.category.rawValue) #СамоРазвитие
+        """
+        
+        print("RecommendationCardWrapper: Текст для шаринга подготовлен")
+        showingShareSheet = true
+        print("RecommendationCardWrapper: Открываем sheet для шаринга")
+    }
+    
+    private func durationText(_ days: Int) -> String {
+        if days == 0 {
+            return "Пожизненно"
+        } else {
+            return "\(days) дней"
+        }
+    }
 }
 
 #Preview {

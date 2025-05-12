@@ -10,6 +10,7 @@ public struct AskezaListView: View {
     @State private var askezaToDelete: Askeza?
     @State private var showCopiedToast = false
     @State private var searchText: String = ""
+    @State private var isRefreshing = false
     
     // Внутренний флаг для продления аскезы
     @State private var showExtendForm = false
@@ -114,70 +115,20 @@ public struct AskezaListView: View {
                     }
                     
                     if filteredAskezas.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 50))
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
-                            
-                            Text(emptyStateMessage)
-                                .font(AskezaTheme.bodyFont)
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
-                        Spacer()
+                        emptyStateView
                     } else {
-                        ScrollView {
-                            LazyVStack(spacing: 16) {
-                                ForEach(filteredAskezas) { askeza in
-                                    Button {
-                                        selectedAskeza = askeza
-                                        showAskezaDetail = true
-                                    } label: {
-                                        AskezaCardView(
-                                            askeza: askeza,
-                                            onDelete: {
-                                                viewModel.deleteAskeza(askeza)
-                                            },
-                                            onComplete: {
-                                                viewModel.completeAskeza(askeza)
-                                            },
-                                            onExtend: {
-                                                // Используем отдельные флаги для операции продления
-                                                askezaToExtend = askeza
-                                                showExtendForm = true
-                                            },
-                                            onProgressUpdate: { newProgress in
-                                                viewModel.updateProgress(askeza, newProgress: newProgress)
-                                            }
-                                        )
-                                    }
-                                    .contextMenu {
-                                        Button(action: {
-                                            UIPasteboard.general.string = formatAskezaHashtag(askeza)
-                                            withAnimation {
-                                                showCopiedToast = true
-                                            }
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                                withAnimation {
-                                                    showCopiedToast = false
-                                                }
-                                            }
-                                        }) {
-                                            Label("Скопировать хэштег", systemImage: "doc.on.doc")
-                                        }
-                                        
-                                        Button(role: .destructive) {
-                                            askezaToDelete = askeza
-                                            showingDeleteConfirmation = true
-                                        } label: {
-                                            Label("Удалить", systemImage: "trash")
-                                        }
-                                    }
+                        askezaGridView
+                            .refreshable {
+                                // Имитация обновления данных
+                                isRefreshing = true
+                                // Здесь может быть ваш код обновления данных
+                                viewModel.refreshData()
+                                
+                                // Задержка для визуального эффекта
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                    isRefreshing = false
                                 }
                             }
-                            .padding()
-                        }
                     }
                 }
             }
@@ -245,14 +196,135 @@ public struct AskezaListView: View {
         )
     }
     
-    private var emptyStateMessage: String {
+    // Выносим отображение сетки аскез в отдельное свойство
+    private var askezaGridView: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
+                ForEach(filteredAskezas) { askeza in
+                    Button {
+                        selectedAskeza = askeza
+                        showAskezaDetail = true
+                    } label: {
+                        OptimizedAskezaGridCard(
+                            askeza: askeza,
+                            onDelete: {
+                                viewModel.deleteAskeza(askeza)
+                            },
+                            onComplete: {
+                                viewModel.completeAskeza(askeza)
+                            },
+                            onExtend: {
+                                askezaToExtend = askeza
+                                showExtendForm = true
+                            },
+                            onProgressUpdate: { newProgress in
+                                viewModel.updateProgress(askeza, newProgress: newProgress)
+                            }
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding()
+        }
+    }
+    
+    // Улучшенный внешний вид для пустого состояния
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            // Увеличиваем иконку и делаем её более привлекательной
+            ZStack {
+                Circle()
+                    .fill(AskezaTheme.accentColor.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                
+                Circle()
+                    .fill(AskezaTheme.accentColor.opacity(0.2))
+                    .frame(width: 90, height: 90)
+                
+                Image(systemName: emptyStateIconName)
+                    .font(.system(size: 40))
+                    .foregroundColor(emptyStateIconColor)
+            }
+            
+            VStack(spacing: 8) {
+                Text(emptyStateTitle)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(AskezaTheme.textColor)
+                
+                Text(emptyStateSubtitle)
+                    .font(.system(size: 16))
+                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            
+            // Кнопка действия, привязанная к контексту
+            if selectedFilter == .active || selectedFilter == .lifetime {
+                Button(action: {
+                    showCreateAskeza = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle")
+                        Text("Создать аскезу")
+                    }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(AskezaTheme.accentColor)
+                    .cornerRadius(10)
+                }
+                .padding(.top, 12)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // Вспомогательные свойства для пустого состояния
+    
+    private var emptyStateTitle: String {
         switch selectedFilter {
         case .active:
-            return "Нет активных аскез\nСоздайте новую аскезу"
+            return "Нет активных аскез"
         case .completed:
-            return "Нет завершённых аскез\nЗавершите аскезу, чтобы увидеть её здесь"
+            return "Нет завершённых аскез"
         case .lifetime:
-            return "Нет пожизненных аскез\nСоздайте пожизненную аскезу"
+            return "Нет пожизненных аскез"
+        }
+    }
+    
+    private var emptyStateSubtitle: String {
+        switch selectedFilter {
+        case .active:
+            return "Создайте новую аскезу, чтобы начать практику самосовершенствования"
+        case .completed:
+            return "Завершайте аскезы, чтобы видеть здесь свои достижения"
+        case .lifetime:
+            return "Пожизненные аскезы – это обязательства, которые вы берёте на всю жизнь"
+        }
+    }
+    
+    private var emptyStateIconName: String {
+        switch selectedFilter {
+        case .active:
+            return "flame"
+        case .completed:
+            return "checkmark.circle"
+        case .lifetime:
+            return "infinity"
+        }
+    }
+    
+    private var emptyStateIconColor: Color {
+        switch selectedFilter {
+        case .active:
+            return Color.orange
+        case .completed:
+            return Color.green
+        case .lifetime:
+            return Color.blue
         }
     }
 }

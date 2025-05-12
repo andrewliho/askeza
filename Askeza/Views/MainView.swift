@@ -138,6 +138,43 @@ public struct MainView: View {
                 AddWishView(viewModel: viewModel, isPresented: $showingAddWish)
             }
         }
+        .onAppear {
+            // Регистрируем наблюдатель за уведомлениями о создании аскезы
+            setupNotifications()
+        }
+    }
+    
+    // Настройка обработчиков уведомлений
+    private func setupNotifications() {
+        // Удаляем старые наблюдатели, чтобы избежать дублирования
+        NotificationCenter.default.removeObserver(self)
+        
+        // Добавляем наблюдатель для уведомлений о создании аскезы
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("AddAskezaNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak viewModel] notification in
+            print("MainView: Получено уведомление о создании аскезы")
+            
+            // Если объект уведомления - это аскеза, добавляем её в модель
+            guard let viewModel = viewModel else { return }
+            
+            if let askeza = notification.object as? Askeza {
+                print("MainView: Добавляем аскезу: \(askeza.title)")
+                
+                // Добавляем аскезу в модель
+                Task { @MainActor in
+                    // Добавляем аскезу в модель (выполняется на main actor)
+                    viewModel.addAskeza(askeza)
+                    
+                    // Переключаемся на вкладку Аскез (выполняется на main actor)
+                    viewModel.selectedTab = .askezas
+                    
+                    print("MainView: Аскеза добавлена, переключились на вкладку Аскез")
+                }
+            }
+        }
     }
 }
 

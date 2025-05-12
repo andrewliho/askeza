@@ -13,6 +13,8 @@ struct WorkshopGalleryView: View {
     @State private var showingShareSheet = false
     
     @State private var shareText: String = ""
+    @State private var showError = false
+    @State private var errorMessage: String = ""
     
     init(viewModel: AskezaViewModel) {
         self.viewModel = viewModel
@@ -235,7 +237,7 @@ struct WorkshopGalleryView: View {
                                 .font(.headline)
                                 .foregroundColor(AskezaTheme.textColor)
                             
-                            Text(template.description)
+                            Text(template.practiceDescription)
                                 .foregroundColor(AskezaTheme.secondaryTextColor)
                                 .fixedSize(horizontal: false, vertical: true)
                             
@@ -279,9 +281,22 @@ struct WorkshopGalleryView: View {
                         // Кнопки действий
                         HStack {
                             Button(action: {
-                                let askeza = templateStore.startTemplate(template)
-                                viewModel.addAskeza(askeza)
-                                showingTemplateDetail = false
+                                print("WorkshopGalleryView: Нажата кнопка 'Начать практику'")
+                                if let askeza = templateStore.startTemplate(template) {
+                                    print("WorkshopGalleryView: Создана аскеза: \(askeza.title)")
+                                    
+                                    // Асинхронно добавляем аскезу в viewModel через Task
+                                    Task { @MainActor in
+                                        viewModel.addAskeza(askeza)
+                                        print("WorkshopGalleryView: Аскеза добавлена в viewModel")
+                                    }
+                                    
+                                    showingTemplateDetail = false
+                                } else {
+                                    // Показываем ошибку, что шаблон уже активен
+                                    errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                                    showError = true
+                                }
                             }) {
                                 Text("Начать практику")
                                     .font(.headline)
@@ -291,8 +306,15 @@ struct WorkshopGalleryView: View {
                                     .background(AskezaTheme.accentColor)
                                     .cornerRadius(12)
                             }
+                            .buttonStyle(PlainButtonStyle())
+                            .alert("Внимание", isPresented: $showError) {
+                                Button("ОК", role: .cancel) {}
+                            } message: {
+                                Text(errorMessage)
+                            }
                             
                             Button(action: {
+                                print("WorkshopGalleryView: Нажата кнопка 'Поделиться'")
                                 shareTemplate(template)
                             }) {
                                 Image(systemName: "square.and.arrow.up")
@@ -302,6 +324,7 @@ struct WorkshopGalleryView: View {
                                     .background(AskezaTheme.buttonBackground)
                                     .cornerRadius(12)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.horizontal)
                     }
@@ -414,6 +437,7 @@ struct WorkshopGalleryView: View {
     }
     
     private func shareTemplate(_ template: PracticeTemplate) {
+        print("WorkshopGalleryView: Подготовка текста для шаринга")
         shareText = """
         🧘‍♂️ Аскеза: \(template.title)
         📝 Категория: \(template.category.rawValue)
@@ -423,7 +447,13 @@ struct WorkshopGalleryView: View {
         #Askeza #\(template.category.rawValue) #СамоРазвитие
         """
         
-        showingShareSheet = true
+        print("WorkshopGalleryView: Текст для шаринга подготовлен: \(shareText)")
+        print("WorkshopGalleryView: Открываем sheet для шаринга (текущее значение showingShareSheet: \(showingShareSheet))")
+        // Принудительное обновление для гарантированного открытия
+        DispatchQueue.main.async {
+            showingShareSheet = true
+            print("WorkshopGalleryView: Значение showingShareSheet установлено: \(showingShareSheet)")
+        }
     }
     
     private func clearFilters() {
@@ -486,22 +516,6 @@ struct WorkshopGalleryView: View {
         default:
             return .gray
         }
-    }
-}
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(
-            activityItems: activityItems,
-            applicationActivities: nil
-        )
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
-        // Nothing to do here
     }
 }
 

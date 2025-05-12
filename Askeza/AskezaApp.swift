@@ -33,6 +33,11 @@ struct AskezaApp: App {
                     if isFirstLaunch {
                         logger.debug("🚀 App did launch")
                         isFirstLaunch = false
+                        
+                        // Инициализируем шаблоны аскез при первом запуске
+                        let templateStore = PracticeTemplateStore.shared
+                        AdditionalTemplates.addTemplates(to: templateStore)
+                        logger.debug("📋 Templates added to store")
                     }
                     
                     // Мы можем настроить таймеры для проверки и обновления состояния аскез

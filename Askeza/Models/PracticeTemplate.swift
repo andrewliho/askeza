@@ -10,8 +10,8 @@ public class PracticeTemplate {
     public var category: AskezaCategory
     public var duration: Int       // дни (0 = lifetime)
     public var quote: String
-    public var difficulty: Int     // 1-3
-    public var description: String
+    public var difficulty: Int     // 1-5
+    public var practiceDescription: String
     public var intention: String
     public var courseID: UUID?     // Связь с курсом, если шаблон является частью курса
     
@@ -34,7 +34,7 @@ public class PracticeTemplate {
         self.duration = duration
         self.quote = quote
         self.difficulty = difficulty
-        self.description = description
+        self.practiceDescription = description
         self.intention = intention
         self.courseID = courseID
     }
@@ -50,14 +50,15 @@ public class PracticeTemplate {
             duration: askezaDuration,
             progress: 0,
             isCompleted: false,
-            category: category
+            category: category,
+            templateID: id  // Связываем Askeza с шаблоном
         )
     }
 }
 
 public enum TemplateStatus: String, Codable {
     case notStarted = "Не начато"
-    case inProgress = "В процессе"
+    case inProgress = "Активная"
     case completed = "Завершено"
     case mastered = "Мастер"
     
@@ -127,10 +128,10 @@ public class TemplateProgress {
 public class CoursePath {
     @Attribute(.unique) public var id: UUID
     public var title: String
-    public var description: String
+    public var courseDescription: String
     public var templateIDs: [UUID]  // ID шаблонов в порядке прохождения
     public var category: AskezaCategory
-    public var difficulty: Int     // 1-3
+    public var difficulty: Int     // 1-5
     
     public init(
         id: UUID = UUID(),
@@ -142,7 +143,7 @@ public class CoursePath {
     ) {
         self.id = id
         self.title = title
-        self.description = description
+        self.courseDescription = description
         self.templateIDs = templateIDs
         self.category = category
         self.difficulty = difficulty
@@ -179,7 +180,7 @@ public class UserProfile {
     
     // Добавляем XP и обновляем уровень
     public func addXP(_ amount: Int) {
-        let oldLevel = level
+        let _ = level // Не используем сохраненное старое значение
         xp += amount
         level = calculateLevel()
         

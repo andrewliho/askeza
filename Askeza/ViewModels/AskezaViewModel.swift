@@ -8,28 +8,67 @@ public struct PresetAskezaStore {
     public let askezasByCategory: [AskezaCategory: [PresetAskeza]]
     
     private init() {
-        self.askezasByCategory = [
+        // Здесь используем AdditionalTemplates для получения шаблонов аскез
+        let additionalTemplates = AdditionalTemplates.getHardcodedPresetAskezas()
+        
+        // Группируем аскезы по категориям
+        var tempAskezasByCategory = [AskezaCategory: [PresetAskeza]]()
+        
+        // Добавляем аскезы из AdditionalTemplates
+        for askeza in additionalTemplates {
+            if tempAskezasByCategory[askeza.category] == nil {
+                tempAskezasByCategory[askeza.category] = []
+            }
+            tempAskezasByCategory[askeza.category]?.append(askeza)
+        }
+        
+        // Добавляем традиционные аскезы, если в какой-то категории нет аскез из AdditionalTemplates
+        let traditionalAskezas = PresetAskezaStore.createTraditionalTemplates()
+        for (category, askezas) in traditionalAskezas {
+            if tempAskezasByCategory[category] == nil || tempAskezasByCategory[category]?.isEmpty == true {
+                tempAskezasByCategory[category] = askezas
+            } else {
+                tempAskezasByCategory[category]?.append(contentsOf: askezas)
+            }
+        }
+        
+        self.askezasByCategory = tempAskezasByCategory
+    }
+    
+    // Создает традиционные шаблоны аскез, которые использовались ранее
+    private static func createTraditionalTemplates() -> [AskezaCategory: [PresetAskeza]] {
+        return [
             .osvobozhdenie: [
                 PresetAskeza(title: "Отказ от алкоголя",
                             description: "Полный отказ от алкоголя ради ясности ума и энергии",
                             intention: "Обрести ясность ума и энергию",
-                            category: .osvobozhdenie),
+                            category: .osvobozhdenie,
+                            difficulty: 3,
+                            duration: 30),
                 PresetAskeza(title: "Отказ от никотина",
                             description: "Свобода от курения и вейпов. Возвращение к чистому дыханию",
                             intention: "Вернуться к чистому дыханию",
-                            category: .osvobozhdenie),
+                            category: .osvobozhdenie,
+                            difficulty: 4,
+                            duration: 30),
                 PresetAskeza(title: "Без сахара",
                             description: "Исключение сладостей ради контроля, энергии и ясности",
                             intention: "Обрести контроль над питанием и улучшить энергию",
-                            category: .osvobozhdenie),
+                            category: .osvobozhdenie,
+                            difficulty: 3,
+                            duration: 21),
                 PresetAskeza(title: "Без кофеина",
                             description: "Осознанный отдых от кофе, чая, энергетиков",
                             intention: "Восстановить естественную энергию без стимуляторов",
-                            category: .osvobozhdenie),
+                            category: .osvobozhdenie,
+                            difficulty: 2,
+                            duration: 14),
                 PresetAskeza(title: "Детокс от соцсетей",
                             description: "Неделя без Instagram, TikTok, VK. Цель — внимание и энергия",
                             intention: "Вернуть внимательность и время к важным вещам",
-                            category: .osvobozhdenie),
+                            category: .osvobozhdenie,
+                            difficulty: 2,
+                            duration: 7),
                 PresetAskeza(title: "Информационная диета",
                             description: "Отказ от новостей и шума ради внутреннего покоя",
                             intention: "Найти внутреннюю тишину и спокойствие",
@@ -49,13 +88,45 @@ public struct PresetAskezaStore {
                 PresetAskeza(title: "Антипрокрастинация",
                             description: "Делай главное дело дня без отлагательств",
                             intention: "Обрести продуктивность и довести дела до конца",
-                            category: .osvobozhdenie)
+                            category: .osvobozhdenie),
+                PresetAskeza(title: "Без жалоб",
+                            description: "Полный отказ от жалоб и негативных высказываний",
+                            intention: "Трансформировать негативное мышление",
+                            category: .osvobozhdenie,
+                            difficulty: 3,
+                            duration: 21)
             ],
             .telo: [
+                PresetAskeza(title: "Утренняя пробежка",
+                            description: "Ежедневная утренняя пробежка на свежем воздухе",
+                            intention: "Укрепить тело и дух",
+                            category: .telo,
+                            difficulty: 3,
+                            duration: 30),
                 PresetAskeza(title: "Холодный душ",
-                            description: "Победа над комфортом каждое утро",
-                            intention: "Укрепить силу воли и иммунитет",
-                            category: .telo),
+                            description: "Начало дня с бодрящего холодного душа",
+                            intention: "Закалить тело и волю",
+                            category: .telo,
+                            difficulty: 4,
+                            duration: 14),
+                PresetAskeza(title: "Планка каждый день",
+                            description: "Ежедневная практика удержания планки с увеличением времени",
+                            intention: "Укрепить корпус и развить дисциплину",
+                            category: .telo,
+                            difficulty: 2,
+                            duration: 30),
+                PresetAskeza(title: "Правильная осанка",
+                            description: "Сознательный контроль осанки в течение дня",
+                            intention: "Исправить осанку и предотвратить проблемы со спиной",
+                            category: .telo,
+                            difficulty: 1,
+                            duration: 21),
+                PresetAskeza(title: "Раннее пробуждение",
+                            description: "Подъём каждый день в 5:30 утра",
+                            intention: "Перестроить режим дня для максимальной продуктивности",
+                            category: .telo,
+                            difficulty: 3,
+                            duration: 30),
                 PresetAskeza(title: "10 000 шагов",
                             description: "Прогулка как медитация в действии",
                             intention: "Улучшить здоровье и обрести ясность ума",
@@ -83,13 +154,17 @@ public struct PresetAskezaStore {
             ],
             .um: [
                 PresetAskeza(title: "Медитация",
-                            description: "Ежедневная практика осознанности",
-                            intention: "Обрести внутренний покой и ясность мышления",
-                            category: .um),
+                            description: "Ежедневная практика осознанности и внимательности",
+                            intention: "Обрести внутренний покой",
+                            category: .um,
+                            difficulty: 2,
+                            duration: 21),
                 PresetAskeza(title: "Чтение книг",
-                            description: "Ежедневное чтение для развития ума",
-                            intention: "Развивать интеллект и эрудицию",
-                            category: .um),
+                            description: "Ежедневное чтение полезной литературы",
+                            intention: "Расширить кругозор и развить интеллект",
+                            category: .um,
+                            difficulty: 2,
+                            duration: 30),
                 PresetAskeza(title: "Изучение нового",
                             description: "Каждый день узнавать что-то новое",
                             intention: "Расширять кругозор и поддерживать гибкость ума",
@@ -102,12 +177,56 @@ public struct PresetAskezaStore {
                             description: "Замедление — акт мудрости",
                             intention: "Жить осознанно и наслаждаться каждым моментом",
                             category: .um),
-                PresetAskeza(title: "Дневник осознанности",
-                            description: "Запиши 3 осознанных момента дня",
-                            intention: "Развивать осознанность и присутствие",
-                            category: .um)
+                PresetAskeza(title: "Дневник благодарности",
+                            description: "Записывать 3 вещи, за которые ты благодарен каждый день",
+                            intention: "Развить чувство благодарности",
+                            category: .um,
+                            difficulty: 1,
+                            duration: 30),
+                PresetAskeza(title: "Практика внимательности",
+                            description: "Осознанное проживание обычных действий: еда, ходьба, дыхание",
+                            intention: "Научиться жить в настоящем моменте",
+                            category: .um,
+                            difficulty: 2,
+                            duration: 14),
+                PresetAskeza(title: "Урок нового навыка",
+                            description: "Ежедневное изучение чего-то нового: язык, инструмент, навык",
+                            intention: "Развить мозг и выйти из зоны комфорта",
+                            category: .um,
+                            difficulty: 3,
+                            duration: 30)
             ],
             .dukh: [
+                PresetAskeza(title: "Ежедневная молитва",
+                            description: "Посвящать время духовной практике каждый день",
+                            intention: "Укрепить духовную связь",
+                            category: .dukh,
+                            difficulty: 2,
+                            duration: 40),
+                PresetAskeza(title: "Практика благодарности",
+                            description: "Записывать 3 вещи, за которые ты благодарен каждый день",
+                            intention: "Развить чувство благодарности",
+                            category: .dukh,
+                            difficulty: 1,
+                            duration: 21),
+                PresetAskeza(title: "Добрые дела",
+                            description: "Совершать одно доброе дело ежедневно, не ожидая ничего взамен",
+                            intention: "Развить сострадание и щедрость",
+                            category: .dukh,
+                            difficulty: 2,
+                            duration: 30),
+                PresetAskeza(title: "Духовное чтение",
+                            description: "Чтение духовной литературы для вдохновения",
+                            intention: "Найти духовные ориентиры",
+                            category: .dukh,
+                            difficulty: 1,
+                            duration: 40),
+                PresetAskeza(title: "Созерцание",
+                            description: "Время наедине с собой для глубокого размышления",
+                            intention: "Достичь глубокого самопознания",
+                            category: .dukh,
+                            difficulty: 3,
+                            duration: 14),
                 PresetAskeza(title: "Благодарность",
                             description: "Практика благодарности каждое утро",
                             intention: "Культивировать чувство счастья и удовлетворенности",
@@ -130,6 +249,36 @@ public struct PresetAskezaStore {
                             category: .dukh)
             ],
             .otnosheniya: [
+                PresetAskeza(title: "Признательность",
+                            description: "Ежедневно выражать искреннюю благодарность близким",
+                            intention: "Укрепить связи с окружающими",
+                            category: .otnosheniya,
+                            difficulty: 1,
+                            duration: 14),
+                PresetAskeza(title: "Активное слушание",
+                            description: "Практика полного внимания к собеседнику без перебивания",
+                            intention: "Улучшить навыки общения",
+                            category: .otnosheniya,
+                            difficulty: 2,
+                            duration: 21),
+                PresetAskeza(title: "Звонок родителям",
+                            description: "Ежедневный звонок родителям или другим близким людям",
+                            intention: "Укрепить семейные связи",
+                            category: .otnosheniya,
+                            difficulty: 1,
+                            duration: 30),
+                PresetAskeza(title: "Без критики",
+                            description: "Отказ от любых форм критики и осуждения других",
+                            intention: "Создать атмосферу принятия",
+                            category: .otnosheniya,
+                            difficulty: 3,
+                            duration: 14),
+                PresetAskeza(title: "Новые знакомства",
+                            description: "Знакомиться с одним новым человеком каждый день",
+                            intention: "Расширить социальный круг",
+                            category: .otnosheniya,
+                            difficulty: 4,
+                            duration: 7),
                 PresetAskeza(title: "Доброе слово",
                             description: "Говорить только добрые слова",
                             intention: "Создавать позитивную атмосферу вокруг себя",
@@ -142,10 +291,6 @@ public struct PresetAskezaStore {
                             description: "Выражать благодарность родным каждый день",
                             intention: "Укрепить связь с родными и любимыми",
                             category: .otnosheniya),
-                PresetAskeza(title: "Без критики",
-                            description: "Воздержание от критики и осуждения",
-                            intention: "Практиковать принятие и понимание других",
-                            category: .otnosheniya),
                 PresetAskeza(title: "Качественное время",
                             description: "Час полного внимания близким каждый день",
                             intention: "Углубить отношения с близкими людьми",
@@ -155,19 +300,27 @@ public struct PresetAskezaStore {
                 PresetAskeza(title: "Путь воина",
                             description: "Ежедневное преодоление своих границ",
                             intention: "Становиться лучше себя вчерашнего",
-                            category: .velikie),
+                            category: .velikie,
+                            difficulty: 5,
+                            duration: 90),
                 PresetAskeza(title: "Творческая дисциплина",
                             description: "Создавай каждый день, без исключений",
                             intention: "Развить мастерство через ежедневную практику",
-                            category: .velikie),
+                            category: .velikie,
+                            difficulty: 4,
+                            duration: 100),
                 PresetAskeza(title: "Мастерство",
                             description: "Посвящай минимум 1 час в день своему мастерству",
                             intention: "Достичь высот в выбранном деле",
-                            category: .velikie),
+                            category: .velikie,
+                            difficulty: 4,
+                            duration: 365),
                 PresetAskeza(title: "Одиночество мудреца",
                             description: "Время наедине с собой для глубокого созерцания",
                             intention: "Познать истинного себя через уединение",
-                            category: .velikie)
+                            category: .velikie,
+                            difficulty: 5,
+                            duration: 40)
             ]
         ]
     }
@@ -248,6 +401,11 @@ public class AskezaViewModel: ObservableObject {
             
             activeAskezas[index] = updatedAskeza
             
+            // Синхронизируем прогресс с шаблоном, если аскеза связана с шаблоном
+            if let templateID = updatedAskeza.templateID {
+                PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, daysCompleted: newProgress)
+            }
+            
             // Проверяем, не завершена ли аскеза
             if case .days(let total) = updatedAskeza.duration, newProgress >= total {
                 completeAskeza(updatedAskeza)
@@ -267,6 +425,17 @@ public class AskezaViewModel: ObservableObject {
                 completedAskeza.wishStatus = .waiting
             }
             
+            // Если аскеза связана с шаблоном, отмечаем завершение шаблона
+            if let templateID = completedAskeza.templateID {
+                // Получаем информацию о продолжительности шаблона
+                if let template = PracticeTemplateStore.shared.getTemplate(byID: templateID) {
+                    let daysCompleted = template.duration > 0 ? template.duration : completedAskeza.progress
+                    PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, 
+                                                             daysCompleted: daysCompleted,
+                                                             isCompleted: true)
+                }
+            }
+            
             activeAskezas.remove(at: index)
             completedAskezas.append(completedAskeza)
             saveData()
@@ -284,6 +453,11 @@ public class AskezaViewModel: ObservableObject {
     }
     
     public func deleteAskeza(_ askeza: Askeza) {
+        // Если аскеза связана с шаблоном, сбрасываем прогресс шаблона
+        if let templateID = askeza.templateID {
+            PracticeTemplateStore.shared.resetTemplateProgress(templateID)
+        }
+        
         // Проверяем в активных аскезах
         if let index = activeAskezas.firstIndex(where: { $0.id == askeza.id }) {
             activeAskezas.remove(at: index)
@@ -406,6 +580,11 @@ public class AskezaViewModel: ObservableObject {
                     print("Обновление аскезы \(askeza.title): было \(askeza.progress), стало \(updatedAskeza.progress)")
                 }
                 
+                // Синхронизируем прогресс с шаблоном, если аскеза связана с шаблоном
+                if let templateID = updatedAskeza.templateID {
+                    PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, daysCompleted: updatedAskeza.progress)
+                }
+                
                 // Проверяем, не завершена ли аскеза
                 if case .days(let duration) = updatedAskeza.duration, updatedAskeza.progress >= duration {
                     var completedAskeza = updatedAskeza
@@ -466,6 +645,11 @@ public class AskezaViewModel: ObservableObject {
             }
             
             print("Обновление аскезы \(askeza.title): было \(askeza.progress), стало \(updatedAskeza.progress)")
+            
+            // Синхронизируем прогресс с шаблоном, если аскеза связана с шаблоном
+            if let templateID = updatedAskeza.templateID {
+                PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, daysCompleted: updatedAskeza.progress)
+            }
             
             // Проверяем, не завершена ли аскеза
             if case .days(let duration) = updatedAskeza.duration, updatedAskeza.progress >= duration {
@@ -619,6 +803,11 @@ public class AskezaViewModel: ObservableObject {
             // Обновляем прогресс
             if totalDays > updatedAskeza.progress {
                 updatedAskeza.progress = totalDays
+                
+                // Синхронизируем прогресс с шаблоном, если аскеза связана с шаблоном
+                if let templateID = updatedAskeza.templateID {
+                    PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, daysCompleted: totalDays)
+                }
             }
             
             // Проверяем, завершилась ли аскеза
@@ -640,5 +829,20 @@ public class AskezaViewModel: ObservableObject {
         // Сохраняем изменения
         saveData()
         isUpdatingProgress = false
+    }
+    
+    // Метод для обновления данных через pull-to-refresh
+    public func refreshData() {
+        // Обновляем состояние всех аскез (проверяем прогресс и завершение)
+        updateAskezaStates()
+        
+        // Перезагружаем данные из UserDefaults
+        loadData()
+        
+        // Логируем информацию о данных
+        print("Данные обновлены. Активных аскез: \(activeAskezas.count), Завершенных: \(completedAskezas.count)")
+        
+        // Обновляем дату последней проверки
+        userDefaults.set(Date(), forKey: "lastCheckDate")
     }
 } 

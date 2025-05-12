@@ -19,17 +19,17 @@ public class TemplateService {
     }
     
     func getTemplate(byID id: UUID) -> PracticeTemplate? {
-        let descriptor = FetchDescriptor<PracticeTemplate>(predicate: #Predicate { template in
+        let allTemplates = fetchTemplates()
+        return allTemplates.first { template in
             template.id == id
-        })
-        return try? modelContext.fetch(descriptor).first
+        }
     }
     
     func getTemplate(byTemplateId templateId: String) -> PracticeTemplate? {
-        let descriptor = FetchDescriptor<PracticeTemplate>(predicate: #Predicate { template in
+        let allTemplates = fetchTemplates()
+        return allTemplates.first { template in
             template.templateId == templateId
-        })
-        return try? modelContext.fetch(descriptor).first
+        }
     }
     
     func saveTemplate(_ template: PracticeTemplate) {
@@ -46,47 +46,49 @@ public class TemplateService {
                           difficulty: Int? = nil, 
                           duration: Int? = nil, 
                           searchText: String = "") -> [PracticeTemplate] {
-        var predicate: Predicate<PracticeTemplate>?
+        // Получаем все шаблоны
+        let templatesDescriptor = FetchDescriptor<PracticeTemplate>()
+        let allTemplates = (try? modelContext.fetch(templatesDescriptor)) ?? []
         
-        if let category = category {
-            let categoryPredicate = #Predicate<PracticeTemplate> { template in
-                template.category == category
+        // Фильтруем их в памяти
+        return allTemplates.filter { template in
+            // Проверяем соответствие категории, если задана
+            if let category = category, template.category != category {
+                return false
             }
-            predicate = predicate == nil ? categoryPredicate : predicate!.and(categoryPredicate)
-        }
-        
-        if let difficulty = difficulty {
-            let difficultyPredicate = #Predicate<PracticeTemplate> { template in
-                template.difficulty == difficulty
+            
+            // Проверяем соответствие сложности, если задана
+            if let difficulty = difficulty, template.difficulty != difficulty {
+                return false
             }
-            predicate = predicate == nil ? difficultyPredicate : predicate!.and(difficultyPredicate)
-        }
-        
-        if let duration = duration {
-            let durationPredicate = #Predicate<PracticeTemplate> { template in
-                template.duration == duration
+            
+            // Проверяем соответствие длительности, если задана
+            if let duration = duration, template.duration != duration {
+                return false
             }
-            predicate = predicate == nil ? durationPredicate : predicate!.and(durationPredicate)
-        }
-        
-        if !searchText.isEmpty {
-            let searchPredicate = #Predicate<PracticeTemplate> { template in
-                template.title.localizedStandardContains(searchText) ||
-                template.description.localizedStandardContains(searchText) ||
-                template.intention.localizedStandardContains(searchText)
+            
+            // Проверяем соответствие поисковому запросу, если задан
+            if !searchText.isEmpty {
+                let matchesTitle = template.title.localizedStandardContains(searchText)
+                let matchesDescription = template.practiceDescription.localizedStandardContains(searchText)
+                let matchesIntention = template.intention.localizedStandardContains(searchText)
+                
+                if !(matchesTitle || matchesDescription || matchesIntention) {
+                    return false
+                }
             }
-            predicate = predicate == nil ? searchPredicate : predicate!.and(searchPredicate)
+            
+            return true
         }
-        
-        let descriptor = FetchDescriptor<PracticeTemplate>(predicate: predicate)
-        return (try? modelContext.fetch(descriptor)) ?? []
     }
     
     // Импорт шаблонов из JSON
     func importTemplatesFromJSON(_ jsonData: Data) -> Bool {
         do {
-            let templates = try JSONDecoder().decode([PracticeTemplate].self, from: jsonData)
-            for template in templates {
+            // Используем TemplateImport для декодирования, так как PracticeTemplate не Decodable
+            let templateImports = try JSONDecoder().decode([TemplateImport].self, from: jsonData)
+            for templateData in templateImports {
+                let template = templateData.toPracticeTemplate()
                 saveTemplate(template)
             }
             return true
@@ -108,16 +110,22 @@ public class ProgressService {
     }
     
     func getProgress(forTemplateID templateID: UUID) -> TemplateProgress? {
-        let descriptor = FetchDescriptor<TemplateProgress>(predicate: #Predicate { progress in
+        // Вместо прямого сравнения UUID создаем предикат более простым способом
+        let allProgress = (try? modelContext.fetch(FetchDescriptor<TemplateProgress>())) ?? []
+        
+        // Фильтруем в коде
+        return allProgress.first { progress in
             progress.templateID == templateID
-        })
-        return try? modelContext.fetch(descriptor).first
+        }
     }
     
     func getStatus(forTemplateID templateID: UUID) -> TemplateStatus {
-        guard let template = try? modelContext.fetch(FetchDescriptor<PracticeTemplate>(predicate: #Predicate { template in
-            template.id == templateID
-        })).first,
+        // Получаем все шаблоны и находим подходящий
+        let templatesDescriptor = FetchDescriptor<PracticeTemplate>()
+        let templates = (try? modelContext.fetch(templatesDescriptor)) ?? []
+        
+        // Ищем шаблон с нужным ID
+        guard let template = templates.first(where: { $0.id == templateID }),
               let templateProgress = getProgress(forTemplateID: templateID) else {
             return .notStarted
         }
@@ -125,11 +133,17 @@ public class ProgressService {
         return templateProgress.status(templateDuration: template.duration)
     }
     
-    func startTemplate(_ template: PracticeTemplate) -> Askeza {
-        let askeza = template.createAskeza()
-        
-        // Создаем или обновляем прогресс
+    func startTemplate(_ template: PracticeTemplate) -> Askeza? {
+        // Проверяем, есть ли активный прогресс для этого шаблона
         if let existingProgress = getProgress(forTemplateID: template.id) {
+            // Проверяем, не завершен ли шаблон
+            let status = existingProgress.status(templateDuration: template.duration)
+            if status == .inProgress {
+                // Если шаблон уже в процессе, не позволяем создать новую аскезу
+                return nil
+            }
+            
+            // Обновляем прогресс, если это повторный запуск завершенного шаблона
             existingProgress.dateStarted = Date()
             existingProgress.currentStreak = 0
         } else {
@@ -142,7 +156,9 @@ public class ProgressService {
         }
         
         try? modelContext.save()
-        return askeza
+        
+        // Создаем аскезу
+        return template.createAskeza()
     }
     
     func updateProgress(forTemplateID templateID: UUID, daysCompleted: Int, isCompleted: Bool = false) {
@@ -177,12 +193,27 @@ public class ProgressService {
         }
     }
     
+    func resetTemplateProgress(forTemplateID templateID: UUID) {
+        if let existingProgress = getProgress(forTemplateID: templateID) {
+            // Сбрасываем прогресс шаблона
+            existingProgress.daysCompleted = 0
+            existingProgress.currentStreak = 0
+            existingProgress.dateStarted = nil
+            
+            // Сохраняем изменения
+            try? modelContext.save()
+        }
+    }
+    
     // MARK: - Rewards and Gamification
     
     func awardCompletionXP(forTemplateID templateID: UUID) {
-        guard let template = try? modelContext.fetch(FetchDescriptor<PracticeTemplate>(predicate: #Predicate { template in
-            template.id == templateID
-        })).first,
+        // Получаем все шаблоны и находим подходящий
+        let templatesDescriptor = FetchDescriptor<PracticeTemplate>()
+        let templates = (try? modelContext.fetch(templatesDescriptor)) ?? []
+        
+        // Ищем шаблон с нужным ID
+        guard let template = templates.first(where: { $0.id == templateID }),
               let progress = getProgress(forTemplateID: templateID) else {
             return
         }
@@ -210,21 +241,26 @@ public class ProgressService {
     }
     
     func checkAchievements(forTemplate template: PracticeTemplate) {
-        // Проверяем достижение "5 шаблонов одной категории"
-        let categoryDescriptor = FetchDescriptor<TemplateProgress>(
-            predicate: #Predicate { progress in
-                if let template = try? self.modelContext.fetch(FetchDescriptor<PracticeTemplate>(predicate: #Predicate { t in
-                    t.id == progress.templateID
-                })).first {
-                    return template.category == template.category && 
-                           progress.status(templateDuration: template.duration) == .completed
-                }
-                return false
-            }
-        )
+        // Получаем все прогрессы
+        let allProgressDescriptor = FetchDescriptor<TemplateProgress>()
+        let allProgress = (try? modelContext.fetch(allProgressDescriptor)) ?? []
         
-        if let completedInCategory = try? modelContext.fetch(categoryDescriptor).count,
-           completedInCategory >= 5 {
+        // Получаем все шаблоны
+        let allTemplatesDescriptor = FetchDescriptor<PracticeTemplate>()
+        let allTemplates = (try? modelContext.fetch(allTemplatesDescriptor)) ?? []
+        
+        // Фильтруем локально для подсчета завершенных шаблонов одной категории
+        var completedInCategory = 0
+        
+        for progress in allProgress {
+            if let progressTemplate = allTemplates.first(where: { $0.id == progress.templateID }),
+               progressTemplate.category == template.category && 
+               progress.status(templateDuration: progressTemplate.duration) == .completed {
+                completedInCategory += 1
+            }
+        }
+        
+        if completedInCategory >= 5 {
             // Награда за 5 завершенных шаблонов в одной категории
             userService.addXP(50)
             // TODO: Добавить выдачу медали
@@ -235,26 +271,29 @@ public class ProgressService {
     
     func getNextTemplateInCourse(afterTemplateID templateID: UUID) -> PracticeTemplate? {
         // Находим курс, содержащий этот шаблон
-        let courseDescriptor = FetchDescriptor<CoursePath>(
-            predicate: #Predicate { course in
-                course.templateIDs.contains(templateID)
-            }
-        )
+        let courseDescriptor = FetchDescriptor<CoursePath>()
+        let courses = (try? modelContext.fetch(courseDescriptor)) ?? []
         
-        guard let course = try? modelContext.fetch(courseDescriptor).first,
-              let currentIndex = course.templateIDs.firstIndex(of: templateID),
-              currentIndex + 1 < course.templateIDs.count else {
-            return nil
+        // Получаем все шаблоны
+        let templatesDescriptor = FetchDescriptor<PracticeTemplate>()
+        let allTemplates = (try? modelContext.fetch(templatesDescriptor)) ?? []
+        
+        // Ищем курс, содержащий данный шаблон
+        for course in courses {
+            if let currentIndex = course.templateIDs.firstIndex(of: templateID),
+               currentIndex + 1 < course.templateIDs.count {
+                
+                // Получаем следующий ID шаблона
+                let nextTemplateID = course.templateIDs[currentIndex + 1]
+                
+                // Ищем соответствующий шаблон
+                return allTemplates.first { template in
+                    template.id == nextTemplateID
+                }
+            }
         }
         
-        let nextTemplateID = course.templateIDs[currentIndex + 1]
-        let templateDescriptor = FetchDescriptor<PracticeTemplate>(
-            predicate: #Predicate { template in
-                template.id == nextTemplateID
-            }
-        )
-        
-        return try? modelContext.fetch(templateDescriptor).first
+        return nil
     }
     
     private func checkAndAdvanceCourse(templateID: UUID) {
@@ -336,53 +375,10 @@ public class RecommendationEngine {
         let allTemplatesDescriptor = FetchDescriptor<PracticeTemplate>()
         let allTemplates = (try? modelContext.fetch(allTemplatesDescriptor)) ?? []
         
-        // Получаем все активные аскезы пользователя
-        let askezasDescriptor = FetchDescriptor<Askeza>(predicate: #Predicate { askeza in
-            !askeza.isCompleted
-        })
-        let activeAskezas = (try? modelContext.fetch(askezasDescriptor)) ?? []
-        
-        // Анализируем категории активных аскез
-        var categoryCounts: [AskezaCategory: Int] = [:]
-        for askeza in activeAskezas {
-            categoryCounts[askeza.category, default: 0] += 1
-        }
-        
-        // Находим категории с наименьшим количеством аскез
-        let sortedCategories = AskezaCategory.allCases.sorted { cat1, cat2 in
-            categoryCounts[cat1, default: 0] < categoryCounts[cat2, default: 0]
-        }
-        
-        // Рекомендуем шаблоны из недостающих категорий
-        var recommendations: [PracticeTemplate] = []
-        
-        for category in sortedCategories {
-            let categoryTemplates = allTemplates.filter { $0.category == category }
-            let notStartedTemplates = categoryTemplates.filter { template in
-                let progressDescriptor = FetchDescriptor<TemplateProgress>(predicate: #Predicate { progress in
-                    progress.templateID == template.id && progress.dateStarted != nil
-                })
-                let hasProgress = ((try? modelContext.fetch(progressDescriptor).first) != nil)
-                return !hasProgress
-            }
-            
-            recommendations.append(contentsOf: notStartedTemplates.prefix(max(1, limit / 3)))
-            
-            if recommendations.count >= limit {
-                break
-            }
-        }
-        
-        // Если у нас все еще недостаточно рекомендаций, добавим наиболее популярные шаблоны
-        if recommendations.count < limit {
-            let remainingCount = limit - recommendations.count
-            let remainingTemplates = allTemplates
-                .filter { !recommendations.contains(where: { $0.id == $1.id }) }
-                .prefix(remainingCount)
-            recommendations.append(contentsOf: remainingTemplates)
-        }
-        
-        return Array(recommendations.prefix(limit))
+        // Временное решение: вернуть первые limit шаблонов
+        // TODO: Доработать алгоритм рекомендаций после добавления Askeza в схему SwiftData
+        let recommendations = allTemplates.prefix(limit)
+        return Array(recommendations)
     }
 }
 
@@ -400,7 +396,8 @@ public class ServiceResolver {
             TemplateProgress.self,
             CoursePath.self,
             UserProfile.self,
-            Askeza.self
+            // Убираем Askeza, так как сейчас она не соответствует PersistentModel
+            // Если требуется хранить ее в SwiftData, нужно будет модифицировать класс Askeza
         ])
         
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
@@ -413,20 +410,21 @@ public class ServiceResolver {
     
     private func registerServices() {
         let userService = UserService(modelContext: modelContext)
-        services["userService"] = userService
+        services["UserService"] = userService
         
         let templateService = TemplateService(modelContext: modelContext)
-        services["templateService"] = templateService
+        services["TemplateService"] = templateService
         
         let progressService = ProgressService(modelContext: modelContext, userService: userService)
-        services["progressService"] = progressService
+        services["ProgressService"] = progressService
         
         let recommendationEngine = RecommendationEngine(modelContext: modelContext)
-        services["recommendationEngine"] = recommendationEngine
+        services["RecommendationEngine"] = recommendationEngine
     }
     
     public func resolve<T>(_ type: T.Type) -> T? {
         let key = String(describing: type)
+        print("Resolving service with key: \(key)")
         return services[key] as? T
     }
 }
@@ -446,11 +444,46 @@ public class PracticeTemplateStore: ObservableObject {
     public static let shared = PracticeTemplateStore()
     
     private init() {
-        // Используем ServiceResolver для получения сервисов
-        self.templateService = ServiceResolver.shared.resolve(TemplateService.self)!
-        self.progressService = ServiceResolver.shared.resolve(ProgressService.self)!
-        self.userService = ServiceResolver.shared.resolve(UserService.self)!
-        self.recommendationEngine = ServiceResolver.shared.resolve(RecommendationEngine.self)!
+        // Проверяем, доступны ли сервисы, и инициализируем их с безопасным доступом
+        guard let templateService = ServiceResolver.shared.resolve(TemplateService.self),
+              let progressService = ServiceResolver.shared.resolve(ProgressService.self),
+              let userService = ServiceResolver.shared.resolve(UserService.self),
+              let recommendationEngine = ServiceResolver.shared.resolve(RecommendationEngine.self) else {
+            // Если какой-то из сервисов не доступен, создаем новый ServiceResolver
+            print("Warning: Services not found, initializing new resolver")
+            
+            // Создаем контейнер SwiftData
+            let schema = Schema([
+                PracticeTemplate.self,
+                TemplateProgress.self,
+                CoursePath.self,
+                UserProfile.self
+            ])
+            
+            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            let container = try! ModelContainer(for: schema, configurations: [modelConfiguration])
+            let modelContext = ModelContext(container)
+            
+            // Создаем и сохраняем сервисы напрямую
+            let userService = UserService(modelContext: modelContext)
+            let templateService = TemplateService(modelContext: modelContext)
+            let progressService = ProgressService(modelContext: modelContext, userService: userService)
+            let recommendationEngine = RecommendationEngine(modelContext: modelContext)
+            
+            self.templateService = templateService
+            self.progressService = progressService
+            self.userService = userService
+            self.recommendationEngine = recommendationEngine
+            
+            loadData()
+            return
+        }
+        
+        // Если все сервисы найдены, используем их
+        self.templateService = templateService
+        self.progressService = progressService
+        self.userService = userService
+        self.recommendationEngine = recommendationEngine
         
         loadData()
     }
@@ -505,7 +538,7 @@ public class PracticeTemplateStore: ObservableObject {
         return progressService.getStatus(forTemplateID: templateID)
     }
     
-    public func startTemplate(_ template: PracticeTemplate) -> Askeza {
+    public func startTemplate(_ template: PracticeTemplate) -> Askeza? {
         return progressService.startTemplate(template)
     }
     
@@ -515,6 +548,10 @@ public class PracticeTemplateStore: ObservableObject {
     
     public func updateStreak(forTemplateID templateID: UUID, streak: Int) {
         progressService.updateStreak(forTemplateID: templateID, streak: streak)
+    }
+    
+    public func resetTemplateProgress(_ templateID: UUID) {
+        progressService.resetTemplateProgress(forTemplateID: templateID)
     }
     
     // MARK: - Course Management
@@ -561,42 +598,16 @@ public class PracticeTemplateStore: ObservableObject {
             let data = try Data(contentsOf: url)
             let decoder = JSONDecoder()
             
-            // Создаем UUID кодировщик
-            decoder.dataDecodingStrategy = .custom { decoder in
-                let container = try decoder.singleValueContainer()
-                let string = try container.decode(String.self)
-                
-                if let uuid = UUID(uuidString: string) {
-                    return uuid.uuid // Преобразуем UUID в его бинарное представление
-                }
-                
-                throw DecodingError.dataCorruptedError(
-                    in: container,
-                    debugDescription: "Invalid UUID string: \(string)"
-                )
-            }
+            // Используем TemplateImport для декодирования, который уже соответствует Decodable
+            let templateImports = try decoder.decode([TemplateImport].self, from: data)
             
-            // Создаем десериализацию для категорий
-            let templates = try decoder.decode([TemplateImport].self, from: data)
-            
-            for templateData in templates {
-                let category = AskezaCategory.fromString(templateData.category)
-                
-                let template = PracticeTemplate(
-                    id: UUID(uuidString: templateData.id) ?? UUID(),
-                    templateId: templateData.templateId,
-                    title: templateData.title,
-                    category: category,
-                    duration: templateData.duration,
-                    quote: templateData.quote,
-                    difficulty: templateData.difficulty,
-                    description: templateData.description,
-                    intention: templateData.intention
-                )
-                
+            for templateData in templateImports {
+                // Используем конвертер для создания PracticeTemplate из TemplateImport
+                let template = templateData.toPracticeTemplate()
                 templateService.saveTemplate(template)
             }
             
+            // Обновляем локальную копию шаблонов
             templates = templateService.fetchTemplates()
             
             // Создаем курсы на основе импортированных шаблонов
@@ -613,7 +624,7 @@ public class PracticeTemplateStore: ObservableObject {
         // Путь здорового тела
         let bodyTemplates = templates.filter { $0.category == .telo }
         if bodyTemplates.count >= 2 {
-            let bodyCourse = CoursePath(
+            let _ = CoursePath(
                 title: "Путь физического совершенства",
                 description: "Последовательные практики для трансформации тела и энергии.",
                 templateIDs: Array(bodyTemplates.prefix(3).map { $0.id }),
@@ -626,7 +637,7 @@ public class PracticeTemplateStore: ObservableObject {
         // Путь ясного ума
         let mindTemplates = templates.filter { $0.category == .um }
         if mindTemplates.count >= 2 {
-            let mindCourse = CoursePath(
+            let _ = CoursePath(
                 title: "Путь ясного ума",
                 description: "Последовательные практики для трансформации ума и внимания.",
                 templateIDs: Array(mindTemplates.prefix(3).map { $0.id }),
@@ -639,7 +650,7 @@ public class PracticeTemplateStore: ObservableObject {
         // Путь освобождения
         let liberationTemplates = templates.filter { $0.category == .osvobozhdenie }
         if liberationTemplates.count >= 2 {
-            let liberationCourse = CoursePath(
+            let _ = CoursePath(
                 title: "Путь освобождения",
                 description: "Последовательные практики для избавления от зависимостей и ограничений.",
                 templateIDs: Array(liberationTemplates.prefix(3).map { $0.id }),
@@ -696,14 +707,26 @@ public class PracticeTemplateStore: ObservableObject {
             intention: "Культивировать чувство счастья и удовлетворенности"
         )
         
+        let digitalDetox = PracticeTemplate(
+            templateId: "digital-detox-7",
+            title: "7 дней цифрового детокса",
+            category: .osvobozhdenie,
+            duration: 7,
+            quote: "Иногда нужно отключиться, чтобы восстановить связь.",
+            difficulty: 2,
+            description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
+            intention: "Вернуть контроль над своим вниманием и временем"
+        )
+        
         // Сохраняем шаблоны
         addTemplate(coldShower)
         addTemplate(meditation)
         addTemplate(noSugar)
         addTemplate(gratitude)
+        addTemplate(digitalDetox)
         
         // Создаем курсы
-        let bodyCourse = CoursePath(
+        let _ = CoursePath(
             title: "Путь физического совершенства",
             description: "Последовательные практики для трансформации тела и энергии.",
             templateIDs: [coldShower.id, noSugar.id],
@@ -711,7 +734,7 @@ public class PracticeTemplateStore: ObservableObject {
             difficulty: 2
         )
         
-        let mindCourse = CoursePath(
+        let _ = CoursePath(
             title: "Путь ясного ума",
             description: "Последовательные практики для трансформации ума и внимания.",
             templateIDs: [meditation.id, gratitude.id],
@@ -720,6 +743,158 @@ public class PracticeTemplateStore: ObservableObject {
         )
         
         // TODO: Сохранить курсы через сервис
+    }
+
+    // Метод для предварительной загрузки данных шаблона перед отображением
+    func preloadTemplateData(for templateID: String) {
+        print("⬇️ PracticeTemplateStore - Начата предварительная загрузка данных для шаблона ID: \(templateID)")
+        
+        // Убедиться, что данные о шаблоне загружены
+        var template: PracticeTemplate?
+        let isDigitalDetox = templateID.contains("digital-detox") || templateID.contains("цифров")
+        
+        // Для шаблона цифрового детокса используем фиксированное значение ID
+        let templateIdToUse = isDigitalDetox ? "digital-detox-7" : templateID
+        
+        // Получение шаблона
+        template = getTemplate(byTemplateId: templateIdToUse)
+        
+        // Если не найден по templateId, проверяем особые случаи
+        if template == nil {
+            if templateID.contains("iron-discipline") || templateID.contains("железн") {
+                // Особый случай для "Год железной дисциплины"
+                template = templates.first(where: { $0.title.contains("железной") || $0.title.contains("Iron Discipline") })
+                print("⚠️ PracticeTemplateStore - Поиск по альтернативному названию для 'Год железной дисциплины'")
+            } else if templateID.contains("vegetarian") || templateID.contains("вегет") {
+                // Особый случай для "Вегетарианство"
+                template = templates.first(where: { $0.title.contains("Вегетарианство") || $0.title.contains("Vegetarian") })
+                print("⚠️ PracticeTemplateStore - Поиск по альтернативному названию для 'Вегетарианство'")
+            } else if isDigitalDetox {
+                // Особый случай для "7 дней цифрового детокса"
+                template = templates.first(where: { $0.title.contains("цифрового") || $0.title.contains("digital detox") })
+                print("⚠️ PracticeTemplateStore - Поиск по альтернативному названию для '7 дней цифрового детокса'")
+                
+                // Если шаблон все еще не найден, создаем его
+                if template == nil {
+                    print("🔨 PracticeTemplateStore - Создаю шаблон '7 дней цифрового детокса'")
+                    
+                    // Создаем шаблон с уникальным идентификатором
+                    let digitalDetoxUUID = UUID()
+                    print("🔑 PracticeTemplateStore - Назначен UUID для цифрового детокса: \(digitalDetoxUUID)")
+                    
+                    let digitalDetox = PracticeTemplate(
+                        id: digitalDetoxUUID,
+                        templateId: "digital-detox-7",
+                        title: "7 дней цифрового детокса",
+                        category: .osvobozhdenie,
+                        duration: 7,
+                        quote: "Иногда нужно отключиться, чтобы восстановить связь.",
+                        difficulty: 2,
+                        description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
+                        intention: "Вернуть контроль над своим вниманием и временем"
+                    )
+                    
+                    // Добавляем шаблон
+                    addTemplate(digitalDetox)
+                    print("✅ PracticeTemplateStore - Создан шаблон цифрового детокса")
+                    
+                    // Сохраняем ссылку на созданный шаблон
+                    template = digitalDetox
+                    
+                    // Даем базе данных время на сохранение и обработку
+                    DispatchQueue.main.async {
+                        // Повторно проверяем, доступен ли теперь шаблон
+                        if let savedTemplate = self.getTemplate(byTemplateId: "digital-detox-7") {
+                            print("✅ PracticeTemplateStore - Шаблон цифрового детокса успешно сохранен в базе")
+                            
+                            // Создаем прогресс для шаблона
+                            self.ensureProgressExists(for: savedTemplate)
+                        } else {
+                            print("⚠️ PracticeTemplateStore - Шаблон цифрового детокса не найден в базе после сохранения")
+                        }
+                    }
+                    
+                    // Форсированно обновляем локальные данные сразу
+                    templates = templateService.fetchTemplates()
+                }
+            }
+        }
+        
+        // Если шаблон найден, загружаем данные
+        if let template = template {
+            print("✅ PracticeTemplateStore - Шаблон найден: \(template.title), UUID: \(template.id)")
+            
+            // Для шаблона цифрового детокса делаем дополнительные проверки
+            if isDigitalDetox {
+                // Проверяем, что templateId установлен правильно
+                if template.templateId != "digital-detox-7" {
+                    print("⚠️ PracticeTemplateStore - Исправляем templateId для шаблона цифрового детокса")
+                    template.templateId = "digital-detox-7"
+                }
+                
+                // Обеспечиваем существование прогресса для цифрового детокса
+                ensureProgressExists(for: template)
+            }
+            
+            // Убедиться, что данные о прогрессе загружены
+            let progress = getProgress(forTemplateID: template.id)
+            if let progress = progress {
+                print("✅ PracticeTemplateStore - Прогресс загружен: \(progress.daysCompleted) дней")
+            } else {
+                print("ℹ️ PracticeTemplateStore - Прогресс отсутствует, создаем пустую запись")
+                
+                // Если прогресса нет, создаем его
+                ensureProgressExists(for: template)
+            }
+            
+            // Убедиться, что статус загружен
+            let status = getStatus(forTemplateID: template.id)
+            print("✅ PracticeTemplateStore - Статус: \(status.rawValue)")
+        } else {
+            print("❌ PracticeTemplateStore - Шаблон не найден для ID: \(templateID)")
+            
+            // Если это цифровой детокс, пытаемся создать его еще раз
+            if isDigitalDetox {
+                print("🔄 PracticeTemplateStore - Повторная попытка создания шаблона цифрового детокса")
+                
+                let digitalDetox = PracticeTemplate(
+                    templateId: "digital-detox-7",
+                    title: "7 дней цифрового детокса",
+                    category: .osvobozhdenie,
+                    duration: 7,
+                    quote: "Иногда нужно отключиться, чтобы восстановить связь.",
+                    difficulty: 2,
+                    description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
+                    intention: "Вернуть контроль над своим вниманием и временем"
+                )
+                
+                addTemplate(digitalDetox)
+                print("✅ PracticeTemplateStore - Повторное создание шаблона цифрового детокса")
+                
+                // Обновляем локальный список шаблонов
+                templates = templateService.fetchTemplates()
+            }
+            
+            // Выводим список доступных шаблонов для отладки
+            print("📋 PracticeTemplateStore - Доступные шаблоны:")
+            for (index, availableTemplate) in templates.prefix(5).enumerated() {
+                print("  \(index + 1). \(availableTemplate.title) (ID: \(availableTemplate.templateId))")
+            }
+            if templates.count > 5 {
+                print("  ... и еще \(templates.count - 5) шаблонов")
+            }
+        }
+    }
+    
+    // Вспомогательный метод для обеспечения существования прогресса
+    private func ensureProgressExists(for template: PracticeTemplate) {
+        if getProgress(forTemplateID: template.id) == nil {
+            print("🔨 PracticeTemplateStore - Инициализируем прогресс для шаблона: \(template.title)")
+            
+            // Вставляем прогресс в базу данных напрямую через startTemplate
+            _ = progressService.startTemplate(template)
+            print("✅ PracticeTemplateStore - Инициализирован прогресс для шаблона")
+        }
     }
 }
 
@@ -734,6 +909,20 @@ struct TemplateImport: Codable {
     let difficulty: Int
     let description: String
     let intention: String
+    
+    func toPracticeTemplate() -> PracticeTemplate {
+        return PracticeTemplate(
+            id: UUID(uuidString: id) ?? UUID(),
+            templateId: templateId,
+            title: title,
+            category: AskezaCategory.fromString(category),
+            duration: duration,
+            quote: quote,
+            difficulty: difficulty,
+            description: description,
+            intention: intention
+        )
+    }
 }
 
 // Расширение для преобразования строки категории в enum

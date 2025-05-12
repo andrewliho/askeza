@@ -46,6 +46,25 @@ struct CreateAskezaView: View {
         // Проверяем, создается ли своя аскеза (когда и title и intention пустые)
         let isCustomAskeza = presetTitle.isEmpty && presetIntention.isEmpty && existingAskeza == nil
         
+        // Детальная отладочная информация
+        print("--- Инициализация CreateAskezaView ---")
+        print("presetTitle: '\(presetTitle)'")
+        print("presetIntention: '\(presetIntention)'")
+        print("category: \(category.rawValue)")
+        print("isCustomAskeza: \(isCustomAskeza)")
+        
+        // Пробуем найти подробности шаблона, если это предустановленная аскеза
+        if !isCustomAskeza && !presetTitle.isEmpty {
+            // Пытаемся найти соответствующий шаблон в PresetAskezaStore
+            if let preset = PresetAskezaStore.shared.askezasByCategory[category]?.first(where: { $0.title == presetTitle }) {
+                print("Найден шаблон аскезы в PresetAskezaStore: \(preset.title)")
+                print("Описание: \(preset.description)")
+                print("Намерение: \(preset.intention)")
+            } else {
+                print("ВНИМАНИЕ: Шаблон аскезы не найден в PresetAskezaStore")
+            }
+        }
+        
         // Убедимся, что у нас есть непустые значения, или пустые для своей аскезы
         let title = isCustomAskeza ? "" : presetTitle
         let intention = isCustomAskeza ? "" : presetIntention
@@ -64,6 +83,7 @@ struct CreateAskezaView: View {
         
         // Более подробный вывод в консоль для отладки
         print("CreateAskezaView initialized with title: '\(title)', intention: '\(intention)', category: \(category.rawValue), isCustom: \(isCustomAskeza)")
+        print("--- Конец инициализации CreateAskezaView ---")
         
         // Автоматически устанавливаем пожизненную длительность для определенных аскез
         if presetTitle == "Отказ от алкоголя" || presetTitle == "Отказ от никотина" {

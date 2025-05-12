@@ -108,10 +108,24 @@ struct WorkshopView: View {
                             // Явно присваиваем значение перед открытием sheet
                             selectedPresetAskeza = askeza
                             
-                            // Добавляем небольшую задержку для надежности
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                showingCreateAskeza = true
+                            // Дополнительная отладочная информация
+                            print("Выбрана аскеза: \(askeza.title), категория: \(askeza.category.rawValue)")
+                            print("Описание: \(askeza.description)")
+                            print("Намерение: \(askeza.intention)")
+                            
+                            // Предварительно загружаем данные, если шаблон связан с PracticeTemplate
+                            if let templateId = getTemplateIdForPreset(askeza.title) {
+                                print("Найден templateId для выбранной аскезы: \(templateId)")
+                                // Используем PracticeTemplateStore для загрузки данных
+                                if let practiceStore = ServiceResolver.shared.resolve(PracticeTemplateStore.self) {
+                                    practiceStore.preloadTemplateData(for: templateId)
+                                }
+                            } else {
+                                print("Не удалось найти templateId для аскезы: \(askeza.title)")
                             }
+                            
+                            // Открываем форму создания аскезы с предзаполненными полями
+                            showingCreateAskeza = true
                         }
                     }
                 }
@@ -146,6 +160,35 @@ struct WorkshopView: View {
             Text("Ошибка: выбранная аскеза не определена")
                 .foregroundColor(.red)
         }
+    }
+    
+    // Функция для определения templateId по заголовку аскезы
+    func getTemplateIdForPreset(_ title: String) -> String? {
+        // Специальные случаи для известных шаблонов, у которых могут быть проблемы
+        if title.contains("Железной дисциплины") || title.contains("железной дисциплины") {
+            print("🔍 WorkshopView - Определен специальный ID для шаблона 'Год железной дисциплины'")
+            return "365-days-discipline"
+        } else if title.contains("Вегетарианство") {
+            print("🔍 WorkshopView - Определен специальный ID для шаблона 'Вегетарианство'")
+            return "lifetime-vegetarian"
+        } else if title.contains("100 дней отжиманий") {
+            return "100-days-pushups"
+        } else if title.contains("100 дней медитации") {
+            return "100-days-meditation"
+        } else if title.contains("180 дней") {
+            return "180-days-healthy-lifestyle"
+        } else if title.contains("цифрового детокса") || title.contains("digital detox") {
+            print("🔍 WorkshopView - Определен специальный ID для шаблона '7 дней цифрового детокса'")
+            return "digital-detox-7"
+        }
+        
+        // Для других шаблонов генерируем ID на основе заголовка
+        let id = title.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: "")
+        
+        return id
     }
 }
 
@@ -195,40 +238,131 @@ struct AskezaPresetCard: View {
             print("Нажата карточка аскезы: \(askeza.title), \(askeza.intention)")
             action()
         }) {
-            HStack(spacing: 16) {
-                let categoryColor = askeza.category.mainColor
-                
-                Image(systemName: askeza.category.systemImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30)
-                    .foregroundColor(categoryColor)
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(askeza.title)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Color.white)
+            VStack(alignment: .leading, spacing: 14) {
+                // Верхняя часть с иконкой, заголовком и сложностью
+                HStack(spacing: 12) {
+                    // Иконка категории с фоном
+                    ZStack {
+                        Circle()
+                            .fill(askeza.category.mainColor.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: askeza.category.systemImage)
+                            .font(.system(size: 20))
+                            .foregroundColor(askeza.category.mainColor)
+                    }
                     
-                    Text(askeza.description)
-                        .font(.system(size: 16))
-                        .foregroundColor(Color.white.opacity(0.85))
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Заголовок
+                        Text(askeza.title)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(Color.white)
+                            .lineLimit(1)
+                        
+                        // Индикатор сложности
+                        if let difficulty = askeza.difficulty {
+                            HStack(spacing: 2) {
+                                ForEach(1...5, id: \.self) { i in
+                                    Image(systemName: i <= difficulty ? "star.fill" : "star")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(i <= difficulty ? Color.yellow : Color.gray.opacity(0.2))
+                                }
+                                
+                                Text(difficultyText(for: difficulty))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(Color.gray.opacity(0.8))
+                                    .padding(.leading, 4)
+                            }
+                        }
+                    }
                     
-                    if !askeza.intention.isEmpty {
-                        Text(askeza.intention)
+                    Spacer()
+                    
+                    // Индикатор продолжительности
+                    if let duration = askeza.duration {
+                        if duration == 0 {
+                            // Пожизненная
+                            HStack(spacing: 2) {
+                                Image(systemName: "infinity")
+                                    .font(.system(size: 12))
+                                Text("Пожизненно")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.3))
+                            .cornerRadius(6)
+                        } else {
+                            // С указанным количеством дней
+                            HStack(spacing: 2) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 12))
+                                Text("\(duration) дн.")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(askeza.category.mainColor.opacity(0.3))
+                            .cornerRadius(6)
+                        }
+                    }
+                }
+                
+                // Описание
+                Text(askeza.description)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.white.opacity(0.85))
+                    .lineLimit(2)
+                    .padding(.vertical, 2)
+                
+                // Намерение с декоративными элементами
+                if !askeza.intention.isEmpty {
+                    VStack(spacing: 4) {
+                        // Тонкая декоративная линия
+                        Rectangle()
+                            .fill(Color(red: 0.8, green: 0.6, blue: 0.4).opacity(0.3))
+                            .frame(height: 1)
+                            .padding(.vertical, 2)
+                        
+                        Text("\"\(askeza.intention)\"")
                             .font(.system(size: 14, weight: .light, design: .serif))
                             .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.4)) // Бронзовый цвет
                             .italic()
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
+            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(AskezaTheme.buttonBackground) // Используем стиль как в карточках желаний
+                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
             )
-            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(askeza.category.mainColor.opacity(0.2), lineWidth: 1)
+            )
+        }
+    }
+    
+    // Функция для преобразования числовой сложности в текстовое описание
+    private func difficultyText(for difficulty: Int) -> String {
+        switch difficulty {
+        case 1:
+            return "Легко"
+        case 2:
+            return "Средне"
+        case 3:
+            return "Умеренно"
+        case 4:
+            return "Сложно"
+        case 5:
+            return "Очень сложно"
+        default:
+            return ""
         }
     }
 }

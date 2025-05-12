@@ -58,12 +58,57 @@ struct WorkshopGridView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(templates) { template in
-                            TemplateGridCardView(
+                            OptimizedTemplateGridCard(
                                 template: template,
                                 progress: templateStore.getProgress(forTemplateID: template.id),
                                 onTap: {
-                                    selectedTemplate = template
-                                    showingTemplateDetail = true
+                                    print("🔍 WorkshopGridView - Выбран шаблон: \(template.title), ID: \(template.templateId), UUID: \(template.id)")
+                                    
+                                    // Проверяем, является ли это шаблоном "7 дней цифрового детокса"
+                                    let isDigitalDetox = template.title.contains("цифрового детокса") || template.title.contains("digital detox")
+                                    
+                                    // Для цифрового детокса используем увеличенную задержку
+                                    let loadDelay = isDigitalDetox ? 0.5 : 0.1
+                                    
+                                    // Если это шаблон цифрового детокса, обеспечиваем правильное templateId
+                                    let templateIdToLoad = isDigitalDetox ? "digital-detox-7" : template.templateId
+                                    
+                                    print("WorkshopGridView - Загрузка шаблона \(isDigitalDetox ? "цифрового детокса" : template.title) с ID: \(templateIdToLoad)")
+                                    
+                                    // Сначала загружаем данные шаблона
+                                    templateStore.preloadTemplateData(for: templateIdToLoad)
+                                    print("WorkshopGridView - Предварительно загружены данные для шаблона: \(templateIdToLoad)")
+                                    
+                                    // Создаем копию шаблона для гарантии
+                                    let templateCopy = isDigitalDetox ? 
+                                        PracticeTemplate(
+                                            templateId: "digital-detox-7",
+                                            title: template.title,
+                                            category: template.category,
+                                            duration: template.duration,
+                                            quote: template.quote,
+                                            difficulty: template.difficulty,
+                                            description: template.practiceDescription,
+                                            intention: template.intention
+                                        ) : template
+                                    
+                                    // Устанавливаем выбранный шаблон
+                                    selectedTemplate = templateCopy
+                                    
+                                    // Небольшая задержка перед отображением sheet для гарантии готовности данных
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + loadDelay) {
+                                        if selectedTemplate != nil {
+                                            print("WorkshopGridView - Отображаем detail view для шаблона: \(templateCopy.title)")
+                                            showingTemplateDetail = true
+                                        } else {
+                                            // Если шаблон не установлен, повторяем попытку с еще большей задержкой
+                                            selectedTemplate = templateCopy
+                                            print("WorkshopGridView - Повторная попытка отобразить detail view")
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                showingTemplateDetail = true
+                                            }
+                                        }
+                                    }
                                 }
                             )
                         }
@@ -72,12 +117,54 @@ struct WorkshopGridView: View {
                 }
             }
         }
+        .navigationTitle("Мастерская")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingTemplateDetail) {
             if let template = selectedTemplate {
-                TemplateDetailView(
-                    template: template,
-                    templateStore: templateStore
-                )
+                templateDetailView(template)
+                    .onDisappear {
+                        // Сбрасываем выбранный шаблон и перезагружаем данные после закрытия
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            selectedTemplate = nil
+                            
+                            // Выводим дополнительную информацию для диагностики
+                            print("🔄 WorkshopGridView - Sheet закрыт, сбрасываем выбранный шаблон: \(template.title)")
+                            
+                            // Обновляем данные для шаблона, если это был шаблон цифрового детокса
+                            if template.title.contains("цифрового детокса") || template.title.contains("digital detox") {
+                                print("🔄 WorkshopGridView - Принудительное обновление данных шаблона цифрового детокса")
+                                templateStore.preloadTemplateData(for: "digital-detox-7")
+                            }
+                        }
+                    }
+            } else {
+                // Вид с ошибкой, если шаблон не найден
+                VStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 50))
+                        .foregroundColor(.yellow)
+                        .padding()
+                    
+                    Text("Ошибка загрузки шаблона")
+                        .font(.headline)
+                        .foregroundColor(AskezaTheme.textColor)
+                    
+                    Text("Пожалуйста, попробуйте снова")
+                        .font(.subheadline)
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                        .padding(.top, 8)
+                    
+                    Button("Закрыть") {
+                        showingTemplateDetail = false
+                    }
+                    .padding()
+                    .background(AskezaTheme.buttonBackground)
+                    .cornerRadius(8)
+                    .padding(.top, 20)
+                }
+                .padding()
+                .background(AskezaTheme.backgroundColor)
+                .edgesIgnoringSafeArea(.all)
             }
         }
     }
@@ -153,197 +240,45 @@ struct WorkshopGridView: View {
         selectedDuration = nil
         searchText = ""
     }
-}
-
-struct TemplateGridCardView: View {
-    let template: PracticeTemplate
-    let progress: TemplateProgress?
-    let onTap: () -> Void
     
-    private var status: TemplateStatus {
-        if let progress = progress {
-            return progress.status(templateDuration: template.duration)
-        }
-        return .notStarted
-    }
-    
-    private var progressPercentage: Double {
-        guard let progress = progress, template.duration > 0 else {
-            return 0
-        }
-        return min(1.0, Double(progress.daysCompleted) / Double(template.duration))
-    }
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 0) {
-                // Верхняя часть карточки с фоном цвета категории
-                ZStack(alignment: .topTrailing) {
-                    // Градиент фон
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(
-                                    colors: [
-                                        template.category.mainColor.opacity(0.7),
-                                        template.category.mainColor.opacity(0.3)
-                                    ]
-                                ),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .aspectRatio(1, contentMode: .fill)
+    private func templateDetailView(_ template: PracticeTemplate) -> some View {
+        VStack {
+            // Предварительно загружаем данные еще раз для надежности при показе sheet
+            TemplateDetailView(
+                template: template,
+                templateStore: templateStore
+            )
+            .onAppear {
+                // При появлении sheet, еще раз загружаем данные для надежности
+                print("🔍 WorkshopGridView - onAppear вызван для sheet с шаблоном: \(template.title)")
+                
+                // Еще раз загружаем данные, чтобы гарантировать доступность
+                templateStore.preloadTemplateData(for: template.templateId)
+                
+                // При отображении digital-detox-7 добавляем дополнительную обработку
+                if template.templateId == "digital-detox-7" || template.title.contains("цифрового детокса") {
+                    print("⚠️ WorkshopGridView - Обнаружен особый шаблон: цифровой детокс")
                     
-                    // Иконка категории
-                    Image(systemName: template.category.systemImage)
-                        .font(.system(size: 36))
-                        .foregroundColor(template.category.mainColor)
-                        .padding()
-                        .opacity(0.8)
-                    
-                    // Бейдж сложности
-                    difficultyBadge
-                        .padding(8)
-                    
-                    // Статус
-                    if status != .notStarted {
-                        VStack {
-                            Spacer()
+                    // Серия повторных загрузок с увеличивающимися интервалами для гарантированной загрузки
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        print("🔄 WorkshopGridView - Повторная загрузка 1 для цифрового детокса")
+                        templateStore.preloadTemplateData(for: "digital-detox-7")
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            print("🔄 WorkshopGridView - Повторная загрузка 2 для цифрового детокса")
+                            templateStore.preloadTemplateData(for: "digital-detox-7")
                             
-                            // Прогресс бар
-                            if status == .inProgress {
-                                GeometryReader { geometry in
-                                    ZStack(alignment: .leading) {
-                                        Rectangle()
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(height: 4)
-                                        
-                                        Rectangle()
-                                            .fill(status.color)
-                                            .frame(width: geometry.size.width * progressPercentage, height: 4)
-                                    }
-                                }
-                                .frame(height: 4)
-                                .padding(.horizontal)
+                            // Третья попытка с еще большей задержкой
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                print("🔄 WorkshopGridView - Финальная загрузка для цифрового детокса")
+                                templateStore.preloadTemplateData(for: "digital-detox-7")
                             }
-                            
-                            // Индикатор статуса
-                            HStack {
-                                Image(systemName: status.icon)
-                                    .foregroundColor(status.color)
-                                
-                                Text(status.rawValue)
-                                    .font(.caption)
-                                    .foregroundColor(AskezaTheme.textColor)
-                                
-                                if let progress = progress, status == .inProgress, progress.currentStreak > 0 {
-                                    Spacer()
-                                    
-                                    HStack(spacing: 2) {
-                                        Text("\(progress.currentStreak)")
-                                            .font(.caption)
-                                            .foregroundColor(.orange)
-                                        
-                                        Image(systemName: "flame.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.orange)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, 8)
                         }
                     }
                 }
-                .frame(height: 140)
-                
-                // Нижняя часть карточки с информацией
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(template.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(AskezaTheme.textColor)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Text("\(durationText(template.duration))")
-                        .font(.caption)
-                        .foregroundColor(AskezaTheme.secondaryTextColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(8)
-                .background(AskezaTheme.buttonBackground)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(statusBorderColor, lineWidth: statusBorderWidth)
-            )
-            .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
-        }
-    }
-    
-    // MARK: - Helper Views and Properties
-    
-    private var difficultyBadge: some View {
-        HStack(spacing: 2) {
-            ForEach(1...template.difficulty, id: \.self) { _ in
-                Circle()
-                    .fill(difficultyColor(level: template.difficulty))
-                    .frame(width: 8, height: 8)
-            }
-        }
-        .padding(6)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.2))
-        )
-    }
-    
-    private var statusBorderColor: Color {
-        switch status {
-        case .notStarted:
-            return Color.clear
-        case .inProgress:
-            return status.color.opacity(0.3)
-        case .completed:
-            return status.color
-        case .mastered:
-            return Color.purple
-        }
-    }
-    
-    private var statusBorderWidth: CGFloat {
-        switch status {
-        case .notStarted:
-            return 0
-        case .inProgress:
-            return 1
-        case .completed, .mastered:
-            return 2
-        }
-    }
-    
-    private func difficultyColor(level: Int) -> Color {
-        switch level {
-        case 1:
-            return .green
-        case 2:
-            return .yellow
-        case 3:
-            return .red
-        default:
-            return .gray
-        }
-    }
-    
-    private func durationText(_ days: Int) -> String {
-        if days == 0 {
-            return "Пожизненная практика"
-        } else {
-            return "\(days) дней"
+            .background(AskezaTheme.backgroundColor)
+            .edgesIgnoringSafeArea(.all)
         }
     }
 }
