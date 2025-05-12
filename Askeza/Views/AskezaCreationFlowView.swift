@@ -238,7 +238,7 @@ struct AskezaCreationFlowView: View {
                                         
                                         Text("Своя аскеза")
                                             .font(AskezaTheme.bodyFont)
-                                            .foregroundColor(AskezaTheme.intentColor)
+                                            .foregroundColor(AskezaTheme.accentColor)
                                         
                                         Spacer()
                                     }
