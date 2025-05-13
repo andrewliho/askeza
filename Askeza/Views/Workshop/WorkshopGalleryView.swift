@@ -71,8 +71,21 @@ struct WorkshopGalleryView: View {
                         .padding(.horizontal)
                     }
                     
-                    // Список шаблонов
-                    templatesList
+                    // Основной список шаблонов
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 400), spacing: 16)], spacing: 16) {
+                            ForEach(filteredTemplates()) { template in
+                                Button(action: {
+                                    selectedTemplate = template
+                                    showingTemplateDetail = true
+                                }) {
+                                    TemplateCard(template: template, templateStore: templateStore)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding()
+                    }
                 }
             }
             .navigationTitle("Мастерская")
@@ -219,57 +232,111 @@ struct WorkshopGalleryView: View {
                         }
                         .frame(maxWidth: .infinity)
                         
-                        // Цитата
-                        Text("\"\(template.quote)\"")
-                            .font(.system(size: 18, weight: .light, design: .serif))
-                            .italic()
-                            .foregroundColor(AskezaTheme.intentColor)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                            .frame(maxWidth: .infinity)
-                        
-                        // Детали
+                        // Информация о шаблоне
                         VStack(alignment: .leading, spacing: 16) {
-                            detailRow(title: "Длительность:", value: durationText(template.duration))
-                            detailRow(title: "Сложность:", value: difficultyText(template.difficulty))
-                            
-                            Text("Описание")
-                                .font(.headline)
-                                .foregroundColor(AskezaTheme.textColor)
-                            
-                            Text(template.practiceDescription)
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
-                                .fixedSize(horizontal: false, vertical: true)
-                            
-                            Text("Цель")
-                                .font(.headline)
-                                .foregroundColor(AskezaTheme.textColor)
-                            
-                            Text(template.intention)
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
-                                .fixedSize(horizontal: false, vertical: true)
-                            
-                            // Прогресс, если есть
-                            if let progress = templateStore.getProgress(forTemplateID: template.id) {
-                                Text("Ваш прогресс")
-                                    .font(.headline)
-                                    .foregroundColor(AskezaTheme.textColor)
+                            // Категория и сложность
+                            HStack {
+                                Text(template.category.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundColor(template.category.mainColor)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(template.category.mainColor.opacity(0.2))
+                                    .cornerRadius(16)
                                 
+                                Spacer()
+                                
+                                // Сложность
+                                HStack(spacing: 2) {
+                                    ForEach(1...template.difficulty, id: \.self) { _ in
+                                        Image(systemName: "star.fill")
+                                            .foregroundColor(difficultyColor(level: template.difficulty))
+                                    }
+                                }
+                            }
+                            
+                            // Статус шаблона
+                            if let progress = templateStore.getProgress(forTemplateID: template.id) {
+                                let status = progress.status(templateDuration: template.duration)
+                                
+                                HStack {
+                                    Image(systemName: status.icon)
+                                        .foregroundColor(status.color)
+                                    
+                                    Text(status.rawValue)
+                                        .foregroundColor(status.color)
+                                    
+                                    Spacer()
+                                    
+                                    if progress.timesCompleted > 0 {
+                                        Text("Завершено раз: \(progress.timesCompleted)")
+                                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(AskezaTheme.buttonBackground)
+                                .cornerRadius(12)
+                            }
+                            
+                            // Цитата
+                            if !template.quote.isEmpty {
+                                Text("\"\(template.quote)\"")
+                                    .font(.body)
+                                    .italic()
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                            }
+                            
+                            // Описание
+                            Text(template.practiceDescription)
+                                .font(.body)
+                                .foregroundColor(AskezaTheme.textColor)
+                                .padding(.vertical, 8)
+                            
+                            // Намерение
+                            if !template.intention.isEmpty {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("Статус: \(templateStore.getStatus(forTemplateID: template.id).rawValue)")
-                                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                                    Text("Намерение:")
+                                        .font(.headline)
+                                        .foregroundColor(AskezaTheme.textColor)
                                     
-                                    Text("Дней завершено: \(progress.daysCompleted)")
+                                    Text(template.intention)
+                                        .font(.body)
                                         .foregroundColor(AskezaTheme.secondaryTextColor)
-                                    
-                                    Text("Текущая серия: \(progress.currentStreak) дней")
-                                        .foregroundColor(AskezaTheme.secondaryTextColor)
-                                    
-                                    Text("Лучшая серия: \(progress.bestStreak) дней")
-                                        .foregroundColor(AskezaTheme.secondaryTextColor)
-                                    
-                                    Text("Завершено раз: \(progress.timesCompleted)")
-                                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            
+                            // Длительность
+                            detailRow(title: "Длительность:", value: durationText(template.duration))
+                                .padding(.vertical, 8)
+                            
+                            // Прогресс, если шаблон активен
+                            if let progress = templateStore.getProgress(forTemplateID: template.id) {
+                                let status = progress.status(templateDuration: template.duration)
+                                
+                                if status == .inProgress {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Текущий прогресс:")
+                                            .font(.headline)
+                                            .foregroundColor(AskezaTheme.textColor)
+                                        
+                                        // Прогресс-бар
+                                        ProgressView(value: Double(progress.daysCompleted), total: Double(template.duration))
+                                            .progressViewStyle(LinearProgressViewStyle(tint: template.category.mainColor))
+                                        
+                                        HStack {
+                                            Text("\(progress.daysCompleted) из \(template.duration) дней")
+                                                .font(.caption)
+                                                .foregroundColor(AskezaTheme.secondaryTextColor)
+                                            
+                                            Spacer()
+                                            
+                                            Text("Текущая серия: \(progress.currentStreak) дней")
+                                                .font(.caption)
+                                                .foregroundColor(AskezaTheme.secondaryTextColor)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -298,7 +365,10 @@ struct WorkshopGalleryView: View {
                                     showError = true
                                 }
                             }) {
-                                Text("Начать практику")
+                                // Определяем текст кнопки в зависимости от статуса шаблона
+                                Text(templateStore.getProgress(forTemplateID: template.id)?.timesCompleted ?? 0 > 0 
+                                    ? "Повторить практику" 
+                                    : "Начать практику")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
@@ -307,11 +377,6 @@ struct WorkshopGalleryView: View {
                                     .cornerRadius(12)
                             }
                             .buttonStyle(PlainButtonStyle())
-                            .alert("Внимание", isPresented: $showError) {
-                                Button("ОК", role: .cancel) {}
-                            } message: {
-                                Text(errorMessage)
-                            }
                             
                             Button(action: {
                                 print("WorkshopGalleryView: Нажата кнопка 'Поделиться'")
@@ -327,20 +392,22 @@ struct WorkshopGalleryView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.horizontal)
+                        .alert("Внимание", isPresented: $showError) {
+                            Button("ОК", role: .cancel) {}
+                        } message: {
+                            Text(errorMessage)
+                        }
                     }
                     .padding(.vertical)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Закрыть") {
-                        showingTemplateDetail = false
-                    }
-                    .foregroundColor(AskezaTheme.accentColor)
-                }
-            }
         }
+        .navigationBarItems(leading: 
+            Button("Закрыть") {
+                showingTemplateDetail = false
+            }
+            .foregroundColor(AskezaTheme.accentColor)
+        )
     }
     
     private func detailRow(title: String, value: String) -> some View {
@@ -512,6 +579,154 @@ struct WorkshopGalleryView: View {
         case 2:
             return .yellow
         case 3:
+            return .red
+        default:
+            return .gray
+        }
+    }
+}
+
+struct TemplateCard: View {
+    let template: PracticeTemplate
+    let templateStore: PracticeTemplateStore
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Заголовок и категория
+            HStack {
+                // Иконка категории
+                Image(systemName: template.category.systemImage)
+                    .font(.system(size: 24))
+                    .foregroundColor(template.category.mainColor)
+                    .frame(width: 36, height: 36)
+                    .background(template.category.mainColor.opacity(0.2))
+                    .cornerRadius(8)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // Заголовок
+                    Text(template.title)
+                        .font(.headline)
+                        .foregroundColor(AskezaTheme.textColor)
+                        .lineLimit(1)
+                    
+                    // Категория и дни
+                    HStack {
+                        Text(template.category.rawValue)
+                            .font(.caption)
+                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                        
+                        Text("•")
+                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                        
+                        Text(durationText(template.duration))
+                            .font(.caption)
+                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                            
+                        // Добавляем статус шаблона, если он не "Не начато"
+                        if let progress = templateStore.getProgress(forTemplateID: template.id) {
+                            let status = progress.status(templateDuration: template.duration)
+                            if status != .notStarted {
+                                Text("•")
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                                
+                                HStack(spacing: 4) {
+                                    Image(systemName: status.icon)
+                                        .font(.caption)
+                                        .foregroundColor(status.color)
+                                    
+                                    Text(status.rawValue)
+                                        .font(.caption)
+                                        .foregroundColor(status.color)
+                                }
+                                
+                                // Если шаблон был завершен хотя бы раз, показываем количество завершений
+                                if progress.timesCompleted > 0 {
+                                    Text("•")
+                                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                                    
+                                    Text("✓ \(progress.timesCompleted)")
+                                        .font(.caption)
+                                        .foregroundColor(status.color)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Сложность - звезды
+                HStack(spacing: 2) {
+                    ForEach(1...template.difficulty, id: \.self) { _ in
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(difficultyColor(level: template.difficulty))
+                    }
+                }
+                .padding(.horizontal, 8)
+            }
+            
+            // Цитата
+            if !template.quote.isEmpty {
+                Text("\"\(template.quote)\"")
+                    .font(.caption)
+                    .italic()
+                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                    .lineLimit(2)
+            }
+            
+            // Если шаблон завершен, добавляем индикатор завершения
+            if let progress = templateStore.getProgress(forTemplateID: template.id),
+               let status = progress.status(templateDuration: template.duration) as TemplateStatus?,
+               status == .completed || status == .mastered {
+                HStack {
+                    Spacer()
+                    Label(
+                        progress.timesCompleted > 1 ? "Пройдено \(progress.timesCompleted) раза" : "Пройдено 1 раз", 
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundColor(status.color)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(status.color.opacity(0.2))
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .padding()
+        .background(AskezaTheme.buttonBackground)
+        .cornerRadius(12)
+        .overlay(
+            // Добавляем рамку для завершенных шаблонов
+            Group {
+                if let progress = templateStore.getProgress(forTemplateID: template.id),
+                   let status = progress.status(templateDuration: template.duration) as TemplateStatus?,
+                   status == .completed || status == .mastered {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(status.color, lineWidth: 2)
+                }
+            }
+        )
+    }
+    
+    // Вспомогательные функции
+    private func durationText(_ days: Int) -> String {
+        if days == 0 {
+            return "Пожизненно"
+        } else {
+            return "\(days) дней"
+        }
+    }
+    
+    private func difficultyColor(level: Int) -> Color {
+        switch level {
+        case 1, 2:
+            return .green
+        case 3, 4:
+            return .yellow
+        case 5:
             return .red
         default:
             return .gray

@@ -9,6 +9,7 @@ public struct AskezaCardView: View {
     @State private var showCopiedToast = false
     @State private var showingProgressEdit = false
     @State private var editedProgress = ""
+    @State private var pulseAnimation = false // Для анимации пульсации
     var onComplete: (() -> Void)?
     var onExtend: (() -> Void)?
     var onProgressUpdate: ((Int) -> Void)?
@@ -96,7 +97,7 @@ public struct AskezaCardView: View {
                     .padding(.vertical, 2)
                     .background(Color.white.opacity(0.2))
                     .cornerRadius(4)
-                } else {
+                
                     HStack(spacing: 4) {
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: 10))
@@ -144,26 +145,101 @@ public struct AskezaCardView: View {
                 }
             }
             
-            // Добавляем разделитель и намерение
+            // Отображаем намерение, если оно есть
             if let intention = askeza.intention, !intention.isEmpty {
-                Rectangle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(height: 1)
-                    .padding(.vertical, 8)
+                Text("Намерение: \(intention)")
+                    .font(AskezaTheme.captionFont)
+                    .foregroundColor(Color.white.opacity(0.8))
+                    .lineLimit(2)
+            }
+            
+            // Кнопки действий
+            HStack(spacing: 16) {
+                // Кнопка "Завершить" только для завершенных аскез, которые еще в активных
+                if isCompleted && !askeza.isInCompletedList {
+                    VStack(spacing: 8) {
+                        Text("Поздравляем! Аскеза завершена!")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Button(action: {
+                            showingCompleteConfirmation = true
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 14))
+                                Text("Завершить")
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.green)
+                            .cornerRadius(8)
+                        }
+                        .alert("Переместить аскезу в завершенные?", isPresented: $showingCompleteConfirmation) {
+                            Button("Отмена", role: .cancel) { }
+                            Button("Завершить") {
+                                onComplete?()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
                 
-                // Бронзовый цвет для цитат
-                Text("\"\(intention)\"")
-                    .font(.system(size: 15, weight: .light, design: .serif))
-                    .italic()
-                    .foregroundColor(Color(red: 0.8, green: 0.6, blue: 0.4)) // Бронзовый цвет
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 4)
+                Spacer()
+                
+                // Кнопка редактирования прогресса
+                Button(action: {
+                    editedProgress = "\(askeza.progress)"
+                    showingProgressEdit = true
+                }) {
+                    Image(systemName: "pencil.circle")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color.white.opacity(0.7))
+                }
+                .alert("Изменить прогресс", isPresented: $showingProgressEdit) {
+                    TextField("Прогресс", text: $editedProgress)
+                        .keyboardType(.numberPad)
+                    
+                    Button("Отмена", role: .cancel) { }
+                    Button("Сохранить") {
+                        if let newProgress = Int(editedProgress) {
+                            onProgressUpdate?(newProgress)
+                        }
+                    }
+                }
             }
         }
-        .padding()
-        .background(AskezaTheme.buttonBackground) // Используем стиль как в карточках желаний
-        .cornerRadius(12)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    isCompleted ? 
+                    LinearGradient(
+                        gradient: Gradient(colors: [askeza.category.mainColor.opacity(0.7), Color.green.opacity(0.7)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ) : 
+                    LinearGradient(
+                        gradient: Gradient(colors: [askeza.category.mainColor.opacity(0.3), askeza.category.mainColor.opacity(0.7)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: isCompleted ? Color.green.opacity(0.5) : Color.black.opacity(0.3), radius: isCompleted ? 8 : 4)
+                // Пульсация только для завершенных аскез, которые еще в активных
+                .scaleEffect(isCompleted && pulseAnimation && !askeza.isInCompletedList ? 1.03 : 1.0)
+        )
+        .onAppear {
+            // Запускаем анимацию пульсации только для завершенных аскез, которые еще в активных
+            if isCompleted && !askeza.isInCompletedList {
+                withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    pulseAnimation = true
+                }
+            }
+        }
         .contextMenu {
             // Кнопка для копирования хэштега
             Button(action: {
@@ -218,35 +294,12 @@ public struct AskezaCardView: View {
             Button("Удалить", role: .destructive) {
                 onDelete()
             }
-        } message: {
-            Text("Это действие нельзя отменить.")
         }
-        .alert("Завершить аскезу?", isPresented: $showingCompleteConfirmation) {
+        .alert("Продлить аскезу", isPresented: $showingExtendDialog) {
             Button("Отмена", role: .cancel) { }
-            Button("Завершить", role: .destructive) {
-                if let onComplete = onComplete {
-                    onComplete()
-                }
-            }
-        } message: {
-            Text("Вы уверены, что хотите завершить эту аскезу? Это действие нельзя отменить.")
-        }
-        .onChange(of: showingExtendDialog) { oldValue, newValue in
-            if newValue && onExtend != nil {
+            Button("Продлить на 7 дней") {
                 onExtend?()
             }
-        }
-        .alert("Изменить прогресс", isPresented: $showingProgressEdit) {
-            TextField("Количество дней", text: $editedProgress)
-                .keyboardType(.numberPad)
-            Button("Отмена", role: .cancel) { }
-            Button("Сохранить") {
-                if let days = Int(editedProgress), let onUpdate = onProgressUpdate {
-                    onUpdate(days)
-                }
-            }
-        } message: {
-            Text("Введите текущий прогресс аскезы (количество пройденных дней).")
         }
     }
 }

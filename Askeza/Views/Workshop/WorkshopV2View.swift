@@ -60,6 +60,25 @@ class WorkshopStateManager: ObservableObject {
             UserDefaults.standard.set(true, forKey: "digitalDetoxTemplateCreated")
         }
     }
+    
+    // Метод для обновления интерфейса после завершения шаблона
+    func refreshAfterCompletion() {
+        print("🔄 WorkshopV2View - Обновление после завершения шаблона")
+        
+        // Принудительно обновляем все данные
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            
+            // Уведомляем всех подписчиков о необходимости обновления
+            NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+        }
+    }
+}
+
+// Расширяем Notification.Name для специфических уведомлений в нашем приложении
+extension Notification.Name {
+    static let addAskeza = Notification.Name("AddAskezaNotification")
+    static let refreshWorkshopData = Notification.Name("RefreshWorkshopDataNotification")
 }
 
 struct WorkshopV2View: View {
@@ -144,7 +163,7 @@ struct WorkshopV2View: View {
                 
                 // Настраиваем наблюдатель для обновления списка после добавления аскезы
                 NotificationCenter.default.addObserver(
-                    forName: Notification.Name("AddAskezaNotification"),
+                    forName: Notification.Name.addAskeza,
                     object: nil,
                     queue: .main
                 ) { [weak stateManager] _ in
@@ -153,9 +172,27 @@ struct WorkshopV2View: View {
                         stateManager?.objectWillChange.send()
                     }
                 }
+                
+                // Добавляем наблюдатель для обновления после завершения шаблона
+                NotificationCenter.default.addObserver(
+                    forName: Notification.Name.refreshWorkshopData,
+                    object: nil,
+                    queue: .main
+                ) { [weak stateManager] _ in
+                    print("📢 WorkshopV2View - Получено уведомление о необходимости обновления данных")
+                    // Обновляем данные немедленно
+                    DispatchQueue.main.async {
+                        stateManager?.objectWillChange.send()
+                    }
+                    
+                    // И еще раз с задержкой для гарантии обновления
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        stateManager?.objectWillChange.send()
+                    }
+                }
             }
             .onDisappear {
-                // Удаляем наблюдатель при исчезновении представления
+                // Удаляем наблюдатели при исчезновении представления
                 NotificationCenter.default.removeObserver(self)
             }
         }
@@ -972,21 +1009,29 @@ struct RecommendationCardWrapper: View {
                     HStack {
                         Button(action: {
                             print("RecommendationCardWrapper: Нажата кнопка 'Начать' для шаблона: \(template.title)")
-                            if let askeza = templateStore.startTemplate(template) {
-                                // Отправляем уведомление для добавления аскезы через асинхронный вызов
-                                Task {
-                                    // Используем NotificationCenter для передачи аскезы
-                                    // Это можно вызывать из любого контекста, так как NotificationCenter потокобезопасен
-                                    NotificationCenter.default.post(
-                                        name: Notification.Name("AddAskezaNotification"),
-                                        object: askeza
-                                    )
-                                    print("RecommendationCardWrapper: Отправлено уведомление о создании аскезы: \(askeza.title)")
+                            
+                            Task {
+                                if let askeza = templateStore.startTemplate(template) {
+                                    // Добавляем задержку для предотвращения конфликтов
+                                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунда
+                                    
+                                    // Отправляем уведомление в основном потоке
+                                    DispatchQueue.main.async {
+                                        // Отправляем уведомление только один раз, с единственной целью - уведомить о создании аскезы
+                                        // Само добавление аскезы в активные происходит через метод handleNewAskeza
+                                        NotificationCenter.default.post(
+                                            name: Notification.Name.addAskeza,
+                                            object: askeza
+                                        )
+                                        print("RecommendationCardWrapper: ✅ Отправлено уведомление о создании аскезы: \(askeza.title)")
+                                    }
+                                } else {
+                                    // Показываем ошибку, что шаблон уже активен
+                                    DispatchQueue.main.async {
+                                        errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                                        showError = true
+                                    }
                                 }
-                            } else {
-                                // Показываем ошибку, что шаблон уже активен
-                                errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
-                                showError = true
                             }
                         }) {
                             Text(startButtonText)

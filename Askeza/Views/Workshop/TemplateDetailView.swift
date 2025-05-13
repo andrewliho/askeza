@@ -569,6 +569,25 @@ struct TemplateDetailView: View {
     private func startAction() {
         // ... existing code ...
     }
+    
+    // Метод для отправки уведомления об обновлении счетчика завершенных шаблонов
+    private func notifyTemplateCompletionUpdate() {
+        print("📢 TemplateDetailView - Отправка уведомления об обновлении счетчика завершенных шаблонов")
+        
+        // Отправляем уведомление для обновления данных в мастерской
+        NotificationCenter.default.post(
+            name: .refreshWorkshopData,
+            object: nil
+        )
+        
+        // Чтобы гарантировать обновление, вызываем с задержкой
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NotificationCenter.default.post(
+                name: .refreshWorkshopData,
+                object: nil
+            )
+        }
+    }
 }
 
 struct ProgressCardView: View {

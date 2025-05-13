@@ -189,8 +189,7 @@ public struct AskezaListView: View {
                     CreateAskezaView(
                         viewModel: viewModel,
                         isPresented: $showExtendForm,
-                        existingAskeza: askeza,
-                        category: askeza.category
+                        existingAskeza: askeza
                     )
                 }
             }
@@ -198,14 +197,13 @@ public struct AskezaListView: View {
         // Оставляем sheet для создания новой аскезы из внешних источников (MainView)
         .sheet(isPresented: $showCreateAskeza) {
             NavigationView {
-                AskezaCreationFlowView(
+                CreateAskezaView(
                     viewModel: viewModel,
-                    isPresented: $showCreateAskeza,
-                    onCreated: { newAskeza in
-                        selectedAskeza = newAskeza
-                        showAskezaDetail = true
-                    }
-                )
+                    isPresented: $showCreateAskeza
+                ) { newAskeza in
+                    selectedAskeza = newAskeza
+                    showAskezaDetail = true
+                }
             }
         }
         .overlay(
@@ -225,11 +223,11 @@ public struct AskezaListView: View {
         )
     }
     
-    // Выносим отображение сетки аскез в отдельное свойство
+    // Выносим отображение списка аскез в отдельное свойство (вместо сетки)
     private var askezaGridView: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
-                ForEach(filteredAskezas) { askeza in
+            VStack(spacing: 16) {
+                ForEach(filteredAskezasWithUniqueIDs) { askeza in
                     Button {
                         selectedAskeza = askeza
                         showAskezaDetail = true
@@ -240,22 +238,46 @@ public struct AskezaListView: View {
                                 viewModel.deleteAskeza(askeza)
                             },
                             onComplete: {
-                                viewModel.completeAskeza(askeza)
+                                withAnimation {
+                                    viewModel.completeAskeza(askeza)
+                                }
                             },
                             onExtend: {
                                 askezaToExtend = askeza
                                 showExtendForm = true
                             },
                             onProgressUpdate: { newProgress in
-                                viewModel.updateProgress(askeza, newProgress: newProgress)
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    viewModel.updateProgress(askeza, newProgress: newProgress)
+                                }
                             }
                         )
+                        .frame(width: UIScreen.main.bounds.width - 32, height: 140)
+                        .id("\(askeza.id)-\(askeza.progress)") // Уникальный id для правильного обновления при изменении прогресса
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
             }
-            .padding()
+            .padding(16)
+            .animation(.easeInOut(duration: 0.3), value: filteredAskezasWithUniqueIDs.count)
         }
+    }
+    
+    // Добавляем проверку на дубликаты ID в отфильтрованных аскезах
+    private var filteredAskezasWithUniqueIDs: [Askeza] {
+        var uniqueAskezas: [Askeza] = []
+        var seenIDs: Set<UUID> = []
+        
+        for askeza in filteredAskezas {
+            if !seenIDs.contains(askeza.id) {
+                uniqueAskezas.append(askeza)
+                seenIDs.insert(askeza.id)
+            } else {
+                print("⚠️ AskezaListView: Обнаружен дубликат аскезы с ID \(askeza.id) - \(askeza.title) в filteredAskezas, пропускаем")
+            }
+        }
+        
+        return uniqueAskezas
     }
     
     // Улучшенный внешний вид для пустого состояния

@@ -68,6 +68,11 @@ public class TemplateService {
         // Получаем массив уникальных шаблонов
         var filteredTemplates = Array(uniqueTemplates.values)
         
+        print("🔍 TemplateService: Всего уникальных шаблонов: \(filteredTemplates.count)")
+        if let category = category {
+            print("🔍 TemplateService: Фильтрация по категории: \(category.rawValue)")
+        }
+        
         // Если не нужно включать активные шаблоны и есть ProgressService, фильтруем их
         if !includeActive, let progressService = progressService {
             filteredTemplates = filteredTemplates.filter { template in
@@ -79,8 +84,10 @@ public class TemplateService {
             }
         }
         
+        print("🔍 TemplateService: После фильтрации активных: \(filteredTemplates.count)")
+        
         // Фильтруем по заданным параметрам
-        return filteredTemplates.filter { template in
+        let result = filteredTemplates.filter { template in
             // Проверяем соответствие категории, если задана
             if let category = category, template.category != category {
                 return false
@@ -109,6 +116,17 @@ public class TemplateService {
             
             return true
         }
+        
+        print("🔍 TemplateService: Конечный результат фильтрации: \(result.count) шаблонов")
+        
+        // Дополнительная защита от пустого результата фильтрации
+        if result.isEmpty && category != nil && filteredTemplates.count > 0 {
+            print("⚠️ TemplateService: Фильтрация вернула пустой результат! Пробуем снова обновить кэш.")
+            // Принудительное обновление кэша и повторение фильтрации без категории
+            return filteredTemplates
+        }
+        
+        return result
     }
     
     // Импорт шаблонов из JSON
@@ -187,10 +205,19 @@ public class ProgressService {
                 // Проверяем, можно ли разблокировать следующий шаг в курсе
                 checkAndAdvanceCourse(templateID: templateID)
                 
+                // Отправляем уведомление для обновления интерфейса
+                DispatchQueue.main.async {
+                    print("📢 ProgressService: Отправка уведомления о завершении шаблона")
+                    NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+                }
+                
                 // Сбрасываем флаг обработки завершения после завершения всех операций
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                     existingProgress.isProcessingCompletion = false
                     print("🔄 ProgressService: Сброшен флаг обработки завершения для шаблона ID: \(templateID)")
+                    
+                    // Еще раз отправляем уведомление после сброса флага для гарантии обновления UI
+                    NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
                 }
             }
             
@@ -208,10 +235,19 @@ public class ProgressService {
             if isCompleted {
                 newProgress.isProcessingCompletion = true
                 
+                // Отправляем уведомление для обновления интерфейса
+                DispatchQueue.main.async {
+                    print("📢 ProgressService: Отправка уведомления о новом завершенном шаблоне")
+                    NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+                }
+                
                 // Сбрасываем флаг обработки завершения после завершения всех операций
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                     newProgress.isProcessingCompletion = false
                     print("🔄 ProgressService: Сброшен флаг обработки завершения для нового шаблона ID: \(templateID)")
+                    
+                    // Еще раз отправляем уведомление после сброса флага
+                    NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
                 }
             }
             

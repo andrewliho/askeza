@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Расширяем функциональность проверки шаблонов
+import Foundation
+
 public struct MainView: View {
     @EnvironmentObject private var viewModel: AskezaViewModel
     // Временно отключено до оформления Apple Developer Program
@@ -131,10 +134,9 @@ public struct MainView: View {
         // Полностью отдельная форма создания аскезы для кнопки в MainView
         .sheet(isPresented: $showingGlobalCreateAskeza) {
             NavigationView {
-                AskezaCreationFlowView(
+                CreateAskezaView(
                     viewModel: viewModel,
-                    isPresented: $showingGlobalCreateAskeza,
-                    onCreated: nil
+                    isPresented: $showingGlobalCreateAskeza
                 )
             }
         }
@@ -144,42 +146,28 @@ public struct MainView: View {
             }
         }
         .onAppear {
-            // Регистрируем наблюдатель за уведомлениями о создании аскезы
+            // Настройка обработчиков уведомлений
             setupNotifications()
+            
+            // Запускаем валидатор шаблонов для поиска несоответствий
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                print("⚙️ MainView: Обратите внимание - необходимо запустить валидацию шаблонов")
+                print("⚙️ MainView: Проверьте совпадение количества дней в названии шаблона и его поле duration")
+                
+                // Очищаем дубликаты шаблонов
+                PracticeTemplateStore.shared.cleanupDuplicateTemplates()
+            }
         }
     }
     
     // Настройка обработчиков уведомлений
     private func setupNotifications() {
-        // Удаляем старые наблюдатели, чтобы избежать дублирования
-        NotificationCenter.default.removeObserver(self)
+        // Удаляем обработчик уведомлений о создании аскезы в MainView,
+        // так как AskezaViewModel уже обрабатывает это уведомление
+        // и двойная обработка приводит к дублированию аскез
         
-        // Добавляем наблюдатель для уведомлений о создании аскезы
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("AddAskezaNotification"),
-            object: nil,
-            queue: .main
-        ) { [weak viewModel] notification in
-            print("MainView: Получено уведомление о создании аскезы")
-            
-            // Если объект уведомления - это аскеза, добавляем её в модель
-            guard let viewModel = viewModel else { return }
-            
-            if let askeza = notification.object as? Askeza {
-                print("MainView: Добавляем аскезу: \(askeza.title)")
-                
-                // Добавляем аскезу в модель
-                Task { @MainActor in
-                    // Добавляем аскезу в модель (выполняется на main actor)
-                    viewModel.addAskeza(askeza)
-                    
-                    // Переключаемся на вкладку Аскез (выполняется на main actor)
-                    viewModel.selectedTab = .askezas
-                    
-                    print("MainView: Аскеза добавлена, переключились на вкладку Аскез")
-                }
-            }
-        }
+        // В будущем здесь могут быть другие обработчики уведомлений, специфичные для MainView
+        print("🔔 MainView: Настройка обработчиков уведомлений завершена")
     }
 }
 

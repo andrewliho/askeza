@@ -198,15 +198,14 @@ struct AddWishView: View {
         }
         .sheet(isPresented: $showingCreateAskeza) {
             NavigationView {
-                // Используем AskezaCreationFlowView вместо CreateAskezaView для единообразия с основной функцией добавления аскез
-                AskezaCreationFlowView(
+                // Используем CreateAskezaView для прямого создания аскезы
+                CreateAskezaView(
                     viewModel: viewModel,
-                    isPresented: $showingCreateAskeza,
-                    onCreated: { newAskeza in
-                        selectedAskeza = newAskeza
-                        showingWishInput = true
-                    }
-                )
+                    isPresented: $showingCreateAskeza
+                ) { newAskeza in
+                    selectedAskeza = newAskeza
+                    showingWishInput = true
+                }
             }
         }
     }

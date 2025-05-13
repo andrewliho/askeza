@@ -146,8 +146,7 @@ struct WorkshopView: View {
                     viewModel: viewModel,
                     isPresented: $showingCreateAskeza,
                     presetTitle: preset.title,
-                    presetIntention: preset.intention,
-                    category: preset.category
+                    presetWish: preset.intention
                 ) { newAskeza in
                     createdAskeza = newAskeza
                     showingCreateAskeza = false
@@ -156,9 +155,16 @@ struct WorkshopView: View {
             }
         } else {
             // Если selectedPresetAskeza равен nil, показываем пустую форму
-            // Это необходимо для отладки - не должно происходить в нормальной работе
-            Text("Ошибка: выбранная аскеза не определена")
-                .foregroundColor(.red)
+            NavigationView {
+                CreateAskezaView(
+                    viewModel: viewModel,
+                    isPresented: $showingCreateAskeza
+                ) { newAskeza in
+                    createdAskeza = newAskeza
+                    showingCreateAskeza = false
+                    showAskezaDetail = true
+                }
+            }
         }
     }
     
