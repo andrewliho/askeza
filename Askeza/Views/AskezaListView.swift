@@ -16,6 +16,9 @@ public struct AskezaListView: View {
     @State private var showExtendForm = false
     @State private var askezaToExtend: Askeza?
     
+    // Добавляем новый флаг для очистки данных
+    @State private var showingClearDataAlert = false
+    
     private enum AskezaFilter: String, CaseIterable {
         case active = "Активные"
         case completed = "Завершённые"
@@ -110,6 +113,23 @@ public struct AskezaListView: View {
                                     selectedFilter = filter
                                 }
                             }
+                            
+                            // Кнопка очистки данных
+                            Button(action: {
+                                showingClearDataAlert = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "trash.fill")
+                                        .foregroundColor(.red)
+                                    Text("Очистить")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.red)
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(Color.red.opacity(0.15))
+                                .cornerRadius(20)
+                            }
                         }
                         .padding(.horizontal)
                     }
@@ -151,6 +171,15 @@ public struct AskezaListView: View {
                 }
             } message: {
                 Text("Это действие нельзя отменить")
+            }
+            // Добавляем диалог подтверждения очистки данных
+            .alert("Очистить все данные?", isPresented: $showingClearDataAlert) {
+                Button("Отмена", role: .cancel) { }
+                Button("Очистить", role: .destructive) {
+                    viewModel.resetAllData()
+                }
+            } message: {
+                Text("Это действие нельзя отменить. Все аскезы и достижения будут удалены.")
             }
         }
         // Отдельная sheet для продления аскезы

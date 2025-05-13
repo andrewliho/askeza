@@ -216,6 +216,21 @@ struct OptimizedTemplateGridCard: View {
                     .padding(8)
                     .frame(height: 45)
                     .background(AskezaTheme.buttonBackground)
+                
+                // Добавляем отображение количества завершений
+                if let progress = progress, progress.timesCompleted > 0 {
+                    HStack {
+                        Text("Пройдено: \(progress.timesCompleted) раз")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(Color.purple.opacity(0.7))
+                            .cornerRadius(10)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(

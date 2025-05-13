@@ -17,42 +17,40 @@ public struct MainView: View {
     
     public var body: some View {
         ZStack {
-            TabView(selection: $viewModel.selectedTab) {
-                NavigationView {
+        TabView(selection: $viewModel.selectedTab) {
+            NavigationView {
                     AskezaListView(viewModel: viewModel, showCreateAskeza: $listShowCreateAskeza)
-                        /* Временно отключено
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button(action: {
-                                    showingSettings = true
-                                }) {
-                                    Image(systemName: "gearshape")
-                                        .foregroundColor(AskezaTheme.accentColor)
-                                }
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: {
+                                showingSettings = true
+                            }) {
+                                Image(systemName: "gearshape")
+                                    .foregroundColor(AskezaTheme.accentColor)
                             }
                         }
-                        */
-                }
-                .tabItem {
-                    Label("Аскезы", systemImage: "house.fill")
-                }
-                .tag(AskezaViewModel.Tab.askezas)
-                
-                NavigationView {
+                    }
+            }
+            .tabItem {
+                Label("Аскезы", systemImage: "house.fill")
+            }
+            .tag(AskezaViewModel.Tab.askezas)
+            
+            NavigationView {
                     WorkshopV2View()
-                }
-                .tabItem {
-                    Label("Мастерская", systemImage: "figure.mind.and.body")
-                }
-                .tag(AskezaViewModel.Tab.workshop)
-                
-                NavigationView {
-                    WishesView(viewModel: viewModel)
-                }
-                .tabItem {
-                    Label("Желания", systemImage: "gift.fill")
-                }
-                .tag(AskezaViewModel.Tab.wishes)
+            }
+            .tabItem {
+                Label("Мастерская", systemImage: "figure.mind.and.body")
+            }
+            .tag(AskezaViewModel.Tab.workshop)
+            
+            NavigationView {
+                WishesView(viewModel: viewModel)
+            }
+            .tabItem {
+                Label("Желания", systemImage: "gift.fill")
+            }
+            .tag(AskezaViewModel.Tab.wishes)
                 
                 /* Временно отключено до оформления Apple Developer Program
                 NavigationView {
@@ -67,8 +65,8 @@ public struct MainView: View {
                 }
                 .tag(AskezaViewModel.Tab.profile)
                 */
-            }
-            .tint(AskezaTheme.accentColor)
+        }
+        .tint(AskezaTheme.accentColor)
             
             // Плавающие кнопки
             VStack {

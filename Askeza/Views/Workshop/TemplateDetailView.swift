@@ -8,6 +8,7 @@ import SwiftData
 class TemplateDetailViewState: ObservableObject {
     @Published var showError = false
     @Published var errorMessage = ""
+    @Published var showConfirmationDialog = false
 }
 
 struct TemplateDetailView: View {
@@ -389,22 +390,9 @@ struct TemplateDetailView: View {
         HStack {
             Button(action: {
                 print("Нажата кнопка 'Начать практику'")
-                if let askeza = templateStore.startTemplate(mutableTemplate) {
-                    // Используем NotificationCenter для передачи аскезы
-                    Task {
-                        NotificationCenter.default.post(
-                            name: Notification.Name("AddAskezaNotification"),
-                            object: askeza
-                        )
-                        print("Создана аскеза: \(askeza.title)")
-                    }
-                    dismiss()
-                } else {
-                    // Показываем сообщение об ошибке - шаблон уже активен
-                    print("Ошибка: Шаблон уже активен и не может быть начат повторно")
-                    state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
-                    state.showError = true
-                }
+                // Показываем диалог подтверждения перед добавлением аскезы
+                state.errorMessage = "Вы хотите добавить аскезу '\(mutableTemplate.title)' в свой список?"
+                state.showConfirmationDialog = true
             }) {
                 Text(startButtonText)
                     .font(.headline)
@@ -415,6 +403,29 @@ struct TemplateDetailView: View {
                     .cornerRadius(12)
             }
             .buttonStyle(PlainButtonStyle())
+            .alert("Начать практику", isPresented: $state.showConfirmationDialog) {
+                Button("Отмена", role: .cancel) {}
+                Button("Добавить") {
+                    if let askeza = templateStore.startTemplate(mutableTemplate) {
+                        // Используем NotificationCenter для передачи аскезы
+                        Task {
+                            NotificationCenter.default.post(
+                                name: Notification.Name("AddAskezaNotification"),
+                                object: askeza
+                            )
+                            print("Создана аскеза: \(askeza.title)")
+                        }
+                        dismiss()
+                    } else {
+                        // Показываем сообщение об ошибке - шаблон уже активен
+                        print("Ошибка: Шаблон уже активен и не может быть начат повторно")
+                        state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                        state.showError = true
+                    }
+                }
+            } message: {
+                Text(state.errorMessage)
+            }
             .alert("Внимание", isPresented: $state.showError) {
                 Button("ОК", role: .cancel) {}
             } message: {

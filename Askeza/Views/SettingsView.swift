@@ -22,6 +22,25 @@ struct SettingsView: View {
                             showingResetAlert = true
                         }) {
                             HStack {
+                                Image(systemName: "trash.fill")
+                                    .foregroundColor(.red)
+                                Text("Очистить все данные")
+                                    .foregroundColor(.red)
+                                    .fontWeight(.bold)
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    } footer: {
+                        Text("Это действие удалит все аскезы и вернет приложение к начальному состоянию.")
+                            .font(AskezaTheme.captionFont)
+                            .foregroundColor(AskezaTheme.secondaryTextColor)
+                    }
+                    
+                    Section {
+                        Button(action: {
+                            showingResetAlert = true
+                        }) {
+                            HStack {
                                 Image(systemName: "arrow.counterclockwise")
                                     .foregroundColor(.red)
                                 Text("Сбросить все данные")

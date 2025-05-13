@@ -1,15 +1,58 @@
 import SwiftUI
 import SwiftData
 
-struct WorkshopV2View: View {
-    @ObservedObject private var templateStore = PracticeTemplateStore.shared
+// Создаем класс для управления состоянием
+class WorkshopStateManager: ObservableObject {
+    @Published var searchText: String = ""
+    @Published var selectedCategory: AskezaCategory? = nil
+    @Published var selectedDifficulty: Int? = nil
+    @Published var selectedDuration: Int? = nil
+    @Published var showingFilters = false
+    @Published var showingOnboarding = false
     
-    @State private var searchText: String = ""
-    @State private var selectedCategory: AskezaCategory? = nil
-    @State private var selectedDifficulty: Int? = nil
-    @State private var selectedDuration: Int? = nil
-    @State private var showingFilters = false
-    @State private var showingOnboarding = false
+    let templateStore = PracticeTemplateStore.shared
+    
+    func resetFilters() {
+        selectedCategory = nil
+        selectedDifficulty = nil
+        selectedDuration = nil
+        searchText = ""
+    }
+    
+    func ensureDigitalDetoxExists() {
+        print("🔍 WorkshopV2View - Проверка наличия шаблона цифрового детокса")
+        
+        // Проверяем существует ли шаблон
+        if templateStore.getTemplate(byTemplateId: "digital-detox-7") == nil {
+            print("⚠️ WorkshopV2View - Шаблон цифрового детокса не найден, создаем его")
+            
+            // Создаем шаблон с уникальным идентификатором
+            let digitalDetoxUUID = UUID()
+            print("🔑 WorkshopV2View - Назначен UUID для цифрового детокса: \(digitalDetoxUUID)")
+            
+            let digitalDetox = PracticeTemplate(
+                id: digitalDetoxUUID,
+                templateId: "digital-detox-7",
+                title: "7 дней цифрового детокса",
+                category: .osvobozhdenie,
+                duration: 7,
+                quote: "Иногда нужно отключиться, чтобы восстановить связь.",
+                difficulty: 2,
+                description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
+                intention: "Вернуть контроль над своим вниманием и временем"
+            )
+            
+            // Добавляем шаблон
+            templateStore.addTemplate(digitalDetox)
+            print("✅ WorkshopV2View - Шаблон цифрового детокса успешно создан")
+        } else {
+            print("✅ WorkshopV2View - Шаблон цифрового детокса уже существует в базе")
+        }
+    }
+}
+
+struct WorkshopV2View: View {
+    @StateObject private var stateManager = WorkshopStateManager()
     
     var body: some View {
         NavigationStack {
@@ -37,13 +80,13 @@ struct WorkshopV2View: View {
                             
                             // Галерея шаблонов
                             WorkshopGridView(
-                                templateStore: templateStore,
-                                searchText: $searchText,
-                                selectedCategory: $selectedCategory,
-                                selectedDifficulty: $selectedDifficulty,
-                                selectedDuration: $selectedDuration
+                                templateStore: stateManager.templateStore,
+                                searchText: $stateManager.searchText,
+                                selectedCategory: $stateManager.selectedCategory,
+                                selectedDifficulty: $stateManager.selectedDifficulty,
+                                selectedDuration: $stateManager.selectedDuration
                             )
-                            .padding(.top, 8) // Добавляем отступ сверху для лучшего разделения секций
+                            .padding(.top, 8)
                         }
                         .padding(.bottom, 50)
                     }
@@ -54,57 +97,71 @@ struct WorkshopV2View: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        showingFilters = true
+                        stateManager.showingFilters = true
                     }) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .foregroundColor(AskezaTheme.accentColor)
                     }
                 }
             }
-            .sheet(isPresented: $showingFilters) {
+            .sheet(isPresented: $stateManager.showingFilters) {
                 FilterSheetView(
-                    selectedDifficulty: $selectedDifficulty,
-                    selectedDuration: $selectedDuration,
-                    onReset: resetFilters
+                    selectedDifficulty: $stateManager.selectedDifficulty,
+                    selectedDuration: $stateManager.selectedDuration,
+                    onReset: stateManager.resetFilters
                 )
             }
-            .sheet(isPresented: $showingOnboarding) {
+            .sheet(isPresented: $stateManager.showingOnboarding) {
                 WorkshopOnboardingView()
             }
             .onAppear {
-                // Гарантируем, что шаблоны добавлены в хранилище
-                AdditionalTemplates.addTemplates(to: templateStore)
-                print("WorkshopV2View: добавлены шаблоны в хранилище")
-                
-                // Обновляем данные на экране для отображения всех шаблонов
-                let templates = templateStore.filteredTemplates()
-                print("WorkshopV2View: загружено \(templates.count) шаблонов для отображения")
+                // Гарантируем, что шаблоны добавлены в хранилище только при первом запуске
+                if !UserDefaults.standard.bool(forKey: "templatesAdded") {
+                    AdditionalTemplates.addTemplates(to: stateManager.templateStore)
+                    UserDefaults.standard.set(true, forKey: "templatesAdded")
+                    print("✅ WorkshopV2View - Первичное добавление шаблонов выполнено")
+                }
                 
                 // Предзагружаем и гарантируем существование шаблона цифрового детокса
-                ensureDigitalDetoxExists()
+                stateManager.ensureDigitalDetoxExists()
                 
                 // Показываем онбординг при первом запуске
                 if !UserDefaults.standard.bool(forKey: "workshopOnboardingShown") {
-                    showingOnboarding = true
+                    stateManager.showingOnboarding = true
                     UserDefaults.standard.set(true, forKey: "workshopOnboardingShown")
                 }
+                
+                // Настраиваем наблюдатель для обновления списка после добавления аскезы
+                NotificationCenter.default.addObserver(
+                    forName: Notification.Name("AddAskezaNotification"),
+                    object: nil,
+                    queue: .main
+                ) { [weak stateManager] _ in
+                    // Обновляем список шаблонов
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        stateManager?.objectWillChange.send()
+                    }
+                }
+            }
+            .onDisappear {
+                // Удаляем наблюдатель при исчезновении представления
+                NotificationCenter.default.removeObserver(self)
             }
         }
     }
     
-    // MARK: - Sections
-    
+    // Обновляем все свойства для использования stateManager
     private var searchBar: some View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(AskezaTheme.secondaryTextColor)
             
-            TextField("Поиск практик...", text: $searchText)
+            TextField("Поиск практик...", text: $stateManager.searchText)
                 .foregroundColor(AskezaTheme.textColor)
             
-            if !searchText.isEmpty {
+            if !stateManager.searchText.isEmpty {
                 Button(action: {
-                    searchText = ""
+                    stateManager.searchText = ""
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(AskezaTheme.secondaryTextColor)
@@ -131,7 +188,7 @@ struct WorkshopV2View: View {
     }
     
     private var recommendationsSection: some View {
-        let recommendations = templateStore.getRecommendedTemplates(limit: 3)
+        let recommendations = stateManager.templateStore.getRecommendedTemplates(limit: 3)
         
         return Group {
             if !recommendations.isEmpty {
@@ -157,7 +214,7 @@ struct WorkshopV2View: View {
                             ForEach(recommendations) { template in
                                 RecommendationCardWrapper(
                                     template: template,
-                                    templateStore: templateStore
+                                    templateStore: stateManager.templateStore
                                 )
                                 .frame(width: 300, height: 240) // Увеличиваем размер для лучшего отображения
                             }
@@ -172,7 +229,7 @@ struct WorkshopV2View: View {
     }
     
     private var pathsSection: some View {
-        let courses = templateStore.courses
+        let courses = stateManager.templateStore.courses
         
         return Group {
             if !courses.isEmpty {
@@ -184,7 +241,7 @@ struct WorkshopV2View: View {
                             ForEach(courses) { course in
                                 CoursePathCardView(
                                     course: course,
-                                    templateStore: templateStore
+                                    templateStore: stateManager.templateStore
                                 )
                                 .frame(width: 300)
                             }
@@ -207,79 +264,29 @@ struct WorkshopV2View: View {
     
     private func categoryButton(_ category: AskezaCategory?, text: String) -> some View {
         Button(action: {
-            if selectedCategory == category {
-                selectedCategory = nil
+            if stateManager.selectedCategory == category {
+                stateManager.selectedCategory = nil
             } else {
-                selectedCategory = category
+                stateManager.selectedCategory = category
             }
         }) {
             HStack(spacing: 6) {
                 if let category = category {
                     Image(systemName: category.systemImage)
                         .font(.system(size: 14))
-                        .foregroundColor(selectedCategory == category ? .white : category.mainColor)
+                        .foregroundColor(stateManager.selectedCategory == category ? .white : category.mainColor)
                 }
                 
                 Text(text)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(selectedCategory == category ? .white : AskezaTheme.textColor)
+                    .foregroundColor(stateManager.selectedCategory == category ? .white : AskezaTheme.textColor)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(selectedCategory == category ? AskezaTheme.accentColor : AskezaTheme.buttonBackground)
+                    .fill(stateManager.selectedCategory == category ? AskezaTheme.accentColor : AskezaTheme.buttonBackground)
             )
-        }
-    }
-    
-    private func resetFilters() {
-        selectedCategory = nil
-        selectedDifficulty = nil
-        selectedDuration = nil
-        searchText = ""
-    }
-    
-    // Гарантируем существование шаблона цифрового детокса
-    private func ensureDigitalDetoxExists() {
-        print("🔍 WorkshopV2View - Проверка наличия шаблона цифрового детокса")
-        
-        // Проверяем существует ли шаблон
-        if templateStore.getTemplate(byTemplateId: "digital-detox-7") == nil {
-            print("⚠️ WorkshopV2View - Шаблон цифрового детокса не найден, создаем его")
-            
-            // Создаем шаблон с уникальным идентификатором
-            let digitalDetoxUUID = UUID()
-            print("🔑 WorkshopV2View - Назначен UUID для цифрового детокса: \(digitalDetoxUUID)")
-            
-            let digitalDetox = PracticeTemplate(
-                id: digitalDetoxUUID,
-                templateId: "digital-detox-7",
-                title: "7 дней цифрового детокса",
-                category: .osvobozhdenie,
-                duration: 7,
-                quote: "Иногда нужно отключиться, чтобы восстановить связь.",
-                difficulty: 2,
-                description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
-                intention: "Вернуть контроль над своим вниманием и временем"
-            )
-            
-            // Добавляем шаблон
-            templateStore.addTemplate(digitalDetox)
-            print("✅ WorkshopV2View - Шаблон цифрового детокса успешно создан")
-            
-            // Дополнительно загружаем данные для шаблона
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.templateStore.preloadTemplateData(for: "digital-detox-7")
-                print("✅ WorkshopV2View - Выполнена предзагрузка данных для шаблона цифрового детокса")
-            }
-        } else {
-            print("✅ WorkshopV2View - Шаблон цифрового детокса уже существует в базе")
-            
-            // Обновляем данные для существующего шаблона
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.templateStore.preloadTemplateData(for: "digital-detox-7")
-            }
         }
     }
 }

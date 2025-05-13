@@ -62,7 +62,7 @@ struct WorkshopGridView: View {
                                 template: template,
                                 progress: templateStore.getProgress(forTemplateID: template.id),
                                 onTap: {
-                                    print("🔍 WorkshopGridView - Выбран шаблон: \(template.title), ID: \(template.templateId), UUID: \(template.id)")
+                                    print("🔍 WorkshopGridView - Выбран шаблон: \(template.title)")
                                     
                                     // Проверяем, является ли это шаблоном "7 дней цифрового детокса"
                                     let isDigitalDetox = template.title.contains("цифрового детокса") || template.title.contains("digital detox")
@@ -73,11 +73,8 @@ struct WorkshopGridView: View {
                                     // Если это шаблон цифрового детокса, обеспечиваем правильное templateId
                                     let templateIdToLoad = isDigitalDetox ? "digital-detox-7" : template.templateId
                                     
-                                    print("WorkshopGridView - Загрузка шаблона \(isDigitalDetox ? "цифрового детокса" : template.title) с ID: \(templateIdToLoad)")
-                                    
                                     // Сначала загружаем данные шаблона
                                     templateStore.preloadTemplateData(for: templateIdToLoad)
-                                    print("WorkshopGridView - Предварительно загружены данные для шаблона: \(templateIdToLoad)")
                                     
                                     // Создаем копию шаблона для гарантии
                                     let templateCopy = isDigitalDetox ? 
@@ -95,19 +92,9 @@ struct WorkshopGridView: View {
                                     // Устанавливаем выбранный шаблон
                                     selectedTemplate = templateCopy
                                     
-                                    // Небольшая задержка перед отображением sheet для гарантии готовности данных
+                                    // Показываем detail view
                                     DispatchQueue.main.asyncAfter(deadline: .now() + loadDelay) {
-                                        if selectedTemplate != nil {
-                                            print("WorkshopGridView - Отображаем detail view для шаблона: \(templateCopy.title)")
-                                            showingTemplateDetail = true
-                                        } else {
-                                            // Если шаблон не установлен, повторяем попытку с еще большей задержкой
-                                            selectedTemplate = templateCopy
-                                            print("WorkshopGridView - Повторная попытка отобразить detail view")
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                showingTemplateDetail = true
-                                            }
-                                        }
+                                        showingTemplateDetail = true
                                     }
                                 }
                             )

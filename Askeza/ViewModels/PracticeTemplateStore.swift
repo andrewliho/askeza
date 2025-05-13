@@ -45,13 +45,41 @@ public class TemplateService {
     func filteredTemplates(category: AskezaCategory? = nil, 
                           difficulty: Int? = nil, 
                           duration: Int? = nil, 
-                          searchText: String = "") -> [PracticeTemplate] {
-        // Получаем все шаблоны
+                          searchText: String = "",
+                          includeActive: Bool = false,
+                          progressService: ProgressService? = nil) -> [PracticeTemplate] {
+        
         let templatesDescriptor = FetchDescriptor<PracticeTemplate>()
         let allTemplates = (try? modelContext.fetch(templatesDescriptor)) ?? []
         
-        // Фильтруем их в памяти
-        return allTemplates.filter { template in
+        // Создаем словарь для удаления дубликатов по templateId
+        var uniqueTemplates = [String: PracticeTemplate]()
+        
+        // Перебираем все шаблоны и сохраняем только уникальные по templateId
+        for template in allTemplates {
+            if !template.templateId.isEmpty {
+                uniqueTemplates[template.templateId] = template
+            } else {
+                // Для шаблонов без templateId используем UUID в качестве ключа
+                uniqueTemplates[template.id.uuidString] = template
+            }
+        }
+        
+        // Получаем массив уникальных шаблонов
+        var filteredTemplates = Array(uniqueTemplates.values)
+        
+        // Если не нужно включать активные шаблоны и есть ProgressService, фильтруем их
+        if !includeActive, let progressService = progressService {
+            filteredTemplates = filteredTemplates.filter { template in
+                // Получаем статус шаблона через ProgressService
+                let status = progressService.getStatus(forTemplateID: template.id)
+                // Оставляем только те, которые не в процессе выполнения
+                return status != .inProgress
+            }
+        }
+        
+        // Фильтруем по заданным параметрам
+        return filteredTemplates.filter { template in
             // Проверяем соответствие категории, если задана
             if let category = category, template.category != category {
                 return false
@@ -158,7 +186,10 @@ public class ProgressService {
         try? modelContext.save()
         
         // Создаем аскезу
-        return template.createAskeza()
+        let askeza = template.createAskeza()
+        
+        // Возвращаем созданную аскезу без автоматической отправки уведомления
+        return askeza
     }
     
     func updateProgress(forTemplateID templateID: UUID, daysCompleted: Int, isCompleted: Bool = false) {
@@ -302,6 +333,16 @@ public class ProgressService {
             // Можно разблокировать следующий шаблон или отправить уведомление
             print("Разблокирован следующий шаблон в курсе: \(nextTemplate.title)")
         }
+    }
+    
+    func getAllProgress() -> [TemplateProgress] {
+        let progressDescriptor = FetchDescriptor<TemplateProgress>()
+        return (try? modelContext.fetch(progressDescriptor)) ?? []
+    }
+    
+    func deleteProgress(_ progress: TemplateProgress) {
+        modelContext.delete(progress)
+        try? modelContext.save()
     }
 }
 
@@ -519,12 +560,15 @@ public class PracticeTemplateStore: ObservableObject {
     public func filteredTemplates(category: AskezaCategory? = nil, 
                                 difficulty: Int? = nil, 
                                 duration: Int? = nil,
-                                searchText: String = "") -> [PracticeTemplate] {
+                                searchText: String = "",
+                                includeActive: Bool = false) -> [PracticeTemplate] {
         return templateService.filteredTemplates(
             category: category,
             difficulty: difficulty,
             duration: duration,
-            searchText: searchText
+            searchText: searchText,
+            includeActive: includeActive,
+            progressService: progressService
         )
     }
     
@@ -801,19 +845,6 @@ public class PracticeTemplateStore: ObservableObject {
                     // Сохраняем ссылку на созданный шаблон
                     template = digitalDetox
                     
-                    // Даем базе данных время на сохранение и обработку
-                    DispatchQueue.main.async {
-                        // Повторно проверяем, доступен ли теперь шаблон
-                        if let savedTemplate = self.getTemplate(byTemplateId: "digital-detox-7") {
-                            print("✅ PracticeTemplateStore - Шаблон цифрового детокса успешно сохранен в базе")
-                            
-                            // Создаем прогресс для шаблона
-                            self.ensureProgressExists(for: savedTemplate)
-                        } else {
-                            print("⚠️ PracticeTemplateStore - Шаблон цифрового детокса не найден в базе после сохранения")
-                        }
-                    }
-                    
                     // Форсированно обновляем локальные данные сразу
                     templates = templateService.fetchTemplates()
                 }
@@ -831,9 +862,6 @@ public class PracticeTemplateStore: ObservableObject {
                     print("⚠️ PracticeTemplateStore - Исправляем templateId для шаблона цифрового детокса")
                     template.templateId = "digital-detox-7"
                 }
-                
-                // Обеспечиваем существование прогресса для цифрового детокса
-                ensureProgressExists(for: template)
             }
             
             // Убедиться, что данные о прогрессе загружены
@@ -841,10 +869,7 @@ public class PracticeTemplateStore: ObservableObject {
             if let progress = progress {
                 print("✅ PracticeTemplateStore - Прогресс загружен: \(progress.daysCompleted) дней")
             } else {
-                print("ℹ️ PracticeTemplateStore - Прогресс отсутствует, создаем пустую запись")
-                
-                // Если прогресса нет, создаем его
-                ensureProgressExists(for: template)
+                print("ℹ️ PracticeTemplateStore - Прогресс отсутствует")
             }
             
             // Убедиться, что статус загружен
@@ -852,28 +877,6 @@ public class PracticeTemplateStore: ObservableObject {
             print("✅ PracticeTemplateStore - Статус: \(status.rawValue)")
         } else {
             print("❌ PracticeTemplateStore - Шаблон не найден для ID: \(templateID)")
-            
-            // Если это цифровой детокс, пытаемся создать его еще раз
-            if isDigitalDetox {
-                print("🔄 PracticeTemplateStore - Повторная попытка создания шаблона цифрового детокса")
-                
-                let digitalDetox = PracticeTemplate(
-                    templateId: "digital-detox-7",
-                    title: "7 дней цифрового детокса",
-                    category: .osvobozhdenie,
-                    duration: 7,
-                    quote: "Иногда нужно отключиться, чтобы восстановить связь.",
-                    difficulty: 2,
-                    description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
-                    intention: "Вернуть контроль над своим вниманием и временем"
-                )
-                
-                addTemplate(digitalDetox)
-                print("✅ PracticeTemplateStore - Повторное создание шаблона цифрового детокса")
-                
-                // Обновляем локальный список шаблонов
-                templates = templateService.fetchTemplates()
-            }
             
             // Выводим список доступных шаблонов для отладки
             print("📋 PracticeTemplateStore - Доступные шаблоны:")
@@ -886,15 +889,17 @@ public class PracticeTemplateStore: ObservableObject {
         }
     }
     
-    // Вспомогательный метод для обеспечения существования прогресса
-    private func ensureProgressExists(for template: PracticeTemplate) {
-        if getProgress(forTemplateID: template.id) == nil {
-            print("🔨 PracticeTemplateStore - Инициализируем прогресс для шаблона: \(template.title)")
-            
-            // Вставляем прогресс в базу данных напрямую через startTemplate
-            _ = progressService.startTemplate(template)
-            print("✅ PracticeTemplateStore - Инициализирован прогресс для шаблона")
+    public func resetAllTemplateProgress() {
+        // Получаем все прогрессы через progressService
+        let allProgressArray = progressService.getAllProgress()
+        
+        // Удаляем каждый прогресс по отдельности
+        for progress in allProgressArray {
+            progressService.deleteProgress(progress)
         }
+        
+        // Обновляем локальный список прогрессов
+        self.progress = []
     }
 }
 

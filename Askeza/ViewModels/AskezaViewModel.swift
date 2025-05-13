@@ -361,6 +361,29 @@ public class AskezaViewModel: ObservableObject {
     
     public init() {
         loadData()
+        
+        // Подписываемся на уведомления о новых аскезах
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNewAskeza(_:)),
+            name: Notification.Name("AddAskezaNotification"),
+            object: nil
+        )
+    }
+    
+    @objc private func handleNewAskeza(_ notification: Notification) {
+        if let askeza = notification.object as? Askeza {
+            // Проверяем, не существует ли уже такая аскеза
+            let exists = activeAskezas.contains { $0.title == askeza.title && $0.templateID == askeza.templateID }
+            if !exists {
+                // Добавляем новую аскезу в список активных
+                DispatchQueue.main.async {
+                    self.activeAskezas.append(askeza)
+                    self.saveData()
+                    print("AskezaViewModel: Добавлена новая аскеза из шаблона: \(askeza.title)")
+                }
+            }
+        }
     }
     
     @discardableResult
@@ -720,6 +743,9 @@ public class AskezaViewModel: ObservableObject {
             UserDefaults.standard.removePersistentDomain(forName: bundleID)
             UserDefaults.standard.synchronize()
         }
+        
+        // Сбрасываем прогресс всех шаблонов
+        PracticeTemplateStore.shared.resetAllTemplateProgress()
         
         // Сохраняем пустое состояние
         saveData()
