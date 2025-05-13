@@ -1,5 +1,7 @@
 import SwiftUI
 
+// Все компоненты уже включены в основной bundle, дополнительные импорты не требуются
+
 public struct WishesView: View {
     @ObservedObject var viewModel: AskezaViewModel
     @State private var selectedFilter: WishStatus = .waiting
@@ -163,9 +165,14 @@ struct AddWishView: View {
                         ScrollView {
                             LazyVStack(spacing: 16) {
                                 ForEach(askezasWithoutWish) { askeza in
-                                    AskezaCardView(askeza: askeza) {
-                                        // Пустой обработчик удаления, так как карточка только для выбора
-                                    }
+                                    OptimizedAskezaGridCard(
+                                        askeza: askeza,
+                                        onDelete: {},
+                                        onComplete: nil,
+                                        onExtend: nil,
+                                        onProgressUpdate: nil
+                                    )
+                                    .frame(width: UIScreen.main.bounds.width - 32, height: 140)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         selectedAskeza = askeza
