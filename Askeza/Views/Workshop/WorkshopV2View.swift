@@ -20,6 +20,12 @@ class WorkshopStateManager: ObservableObject {
     }
     
     func ensureDigitalDetoxExists() {
+        // Проверяем, был ли уже создан шаблон цифрового детокса
+        if UserDefaults.standard.bool(forKey: "digitalDetoxTemplateCreated") {
+            print("✅ WorkshopV2View - Шаблон цифрового детокса уже был создан ранее")
+            return
+        }
+        
         print("🔍 WorkshopV2View - Проверка наличия шаблона цифрового детокса")
         
         // Проверяем существует ли шаблон
@@ -45,8 +51,13 @@ class WorkshopStateManager: ObservableObject {
             // Добавляем шаблон
             templateStore.addTemplate(digitalDetox)
             print("✅ WorkshopV2View - Шаблон цифрового детокса успешно создан")
+            
+            // Отмечаем, что шаблон был создан
+            UserDefaults.standard.set(true, forKey: "digitalDetoxTemplateCreated")
         } else {
             print("✅ WorkshopV2View - Шаблон цифрового детокса уже существует в базе")
+            // Отмечаем, что шаблон был найден
+            UserDefaults.standard.set(true, forKey: "digitalDetoxTemplateCreated")
         }
     }
 }

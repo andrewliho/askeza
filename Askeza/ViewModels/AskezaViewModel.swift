@@ -884,66 +884,108 @@ public class AskezaViewModel: ObservableObject {
         
         lastProgressUpdateTime = now
         isUpdatingProgress = true
+        defer { isUpdatingProgress = false }
         
         let calendar = Calendar.current
         var askezasToComplete = [Askeza]()
-        var updatedActiveAskezas = [Askeza]()
+        var indexesToRemove = [Int]()
         
-        // Обновляем состояние каждой активной аскезы
-        for askeza in activeAskezas {
-            // Пропускаем уже завершенные аскезы
+        // Сначала проверяем завершенные аскезы, которые могли остаться в активных
+        for (index, askeza) in activeAskezas.enumerated() {
             if askeza.isCompleted {
-                // Переносим завершенные аскезы в соответствующий массив
+                // Если аскеза уже помечена как завершенная, но все еще в активных
                 if !completedAskezas.contains(where: { $0.id == askeza.id }) {
                     completedAskezas.append(askeza)
                 }
+                indexesToRemove.append(index)
                 continue
             }
             
-            var updatedAskeza = askeza
-            
-            // Получаем количество дней между датой начала и текущей датой
-            let components = calendar.dateComponents([.day], from: updatedAskeza.startDate, to: now)
-            let totalDays = max(0, components.day ?? 0)
-            
-            // Обновляем прогресс
-            if totalDays > updatedAskeza.progress {
-                updatedAskeza.progress = totalDays
+            // Проверяем, не должна ли аскеза быть завершена по длительности
+            if case .days(let totalDays) = askeza.duration, askeza.progress >= totalDays {
+                var completedAskeza = askeza
+                completedAskeza.isCompleted = true
                 
-                // Синхронизируем прогресс с шаблоном, если аскеза связана с шаблоном
-                if let templateID = updatedAskeza.templateID {
-                    PracticeTemplateStore.shared.updateProgress(forTemplateID: templateID, daysCompleted: totalDays)
+                // Если есть желание, устанавливаем статус "Ожидает исполнения"
+                if completedAskeza.wish != nil {
+                    completedAskeza.wishStatus = .waiting
                 }
-            }
-            
-            // Проверяем, завершилась ли аскеза
-            if case .days(let duration) = updatedAskeza.duration, updatedAskeza.progress >= duration {
-                updatedAskeza.isCompleted = true
-                if updatedAskeza.wish != nil {
-                    updatedAskeza.wishStatus = .waiting
-                }
-                askezasToComplete.append(updatedAskeza)
                 
-                // Если аскеза связана с шаблоном, отмечаем завершение шаблона
-                if let templateID = updatedAskeza.templateID {
+                // Добавляем в список для завершения
+                askezasToComplete.append(completedAskeza)
+                indexesToRemove.append(index)
+                
+                // Обновляем статус связанного шаблона, если он есть
+                if let templateID = completedAskeza.templateID {
                     PracticeTemplateStore.shared.updateProgress(
                         forTemplateID: templateID,
-                        daysCompleted: duration,
+                        daysCompleted: totalDays,
                         isCompleted: true
                     )
                 }
-            } else {
-                updatedActiveAskezas.append(updatedAskeza)
+                
+                continue
+            }
+            
+            // Обновляем прогресс для незавершенных аскез
+            let components = calendar.dateComponents([.day], from: askeza.startDate, to: now)
+            let calculatedDays = max(0, components.day ?? 0)
+            
+            if calculatedDays > askeza.progress {
+                // Обновляем прогресс только если расчетное значение больше текущего
+                var updatedAskeza = askeza
+                updatedAskeza.progress = calculatedDays
+                
+                // Обновляем связанный шаблон, если есть
+                if let templateID = updatedAskeza.templateID {
+                    PracticeTemplateStore.shared.updateProgress(
+                        forTemplateID: templateID,
+                        daysCompleted: calculatedDays
+                    )
+                }
+                
+                // Проверяем, не завершилась ли аскеза после обновления прогресса
+                if case .days(let totalDays) = updatedAskeza.duration, updatedAskeza.progress >= totalDays {
+                    updatedAskeza.isCompleted = true
+                    if updatedAskeza.wish != nil {
+                        updatedAskeza.wishStatus = .waiting
+                    }
+                    
+                    askezasToComplete.append(updatedAskeza)
+                    indexesToRemove.append(index)
+                    
+                    // Обновляем статус шаблона
+                    if let templateID = updatedAskeza.templateID {
+                        PracticeTemplateStore.shared.updateProgress(
+                            forTemplateID: templateID,
+                            daysCompleted: totalDays,
+                            isCompleted: true
+                        )
+                    }
+                } else {
+                    // Обновляем аскезу в массиве
+                    activeAskezas[index] = updatedAskeza
+                }
             }
         }
         
-        // Обновляем массивы
-        activeAskezas = updatedActiveAskezas
-        completedAskezas.append(contentsOf: askezasToComplete)
+        // Удаляем завершенные аскезы из активных (в обратном порядке, чтобы индексы не сбивались)
+        for index in indexesToRemove.sorted(by: >) {
+            activeAskezas.remove(at: index)
+        }
+        
+        // Добавляем новые завершенные аскезы в массив завершенных
+        for askeza in askezasToComplete {
+            if !completedAskezas.contains(where: { $0.id == askeza.id }) {
+                completedAskezas.append(askeza)
+            }
+        }
         
         // Сохраняем изменения
-        saveData()
-        isUpdatingProgress = false
+        if !indexesToRemove.isEmpty || !askezasToComplete.isEmpty {
+            saveData()
+            print("Данные обновлены: перемещено \(askezasToComplete.count) завершенных аскез")
+        }
     }
     
     // Метод для обновления данных через pull-to-refresh

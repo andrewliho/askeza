@@ -185,7 +185,7 @@ public class ProgressService {
         
         try? modelContext.save()
         
-        // Создаем аскезу
+        // Создаем аскезу из шаблона
         let askeza = template.createAskeza()
         
         // Возвращаем созданную аскезу без автоматической отправки уведомления
@@ -583,7 +583,34 @@ public class PracticeTemplateStore: ObservableObject {
     }
     
     public func startTemplate(_ template: PracticeTemplate) -> Askeza? {
-        return progressService.startTemplate(template)
+        // Проверяем, есть ли активный прогресс для этого шаблона
+        if let existingProgress = getProgress(forTemplateID: template.id) {
+            // Проверяем, не завершен ли шаблон
+            let status = existingProgress.status(templateDuration: template.duration)
+            if status == .inProgress {
+                // Если шаблон уже в процессе, не позволяем создать новую аскезу
+                return nil
+            }
+            
+            // Обновляем прогресс, если это повторный запуск завершенного шаблона
+            existingProgress.dateStarted = Date()
+            existingProgress.currentStreak = 0
+        } else {
+            // Создаем новый прогресс
+            let newProgress = TemplateProgress(
+                templateID: template.id,
+                dateStarted: Date()
+            )
+            modelContext.insert(newProgress)
+        }
+        
+        try? modelContext.save()
+        
+        // Создаем аскезу из шаблона
+        let askeza = template.createAskeza()
+        
+        // Возвращаем созданную аскезу без автоматической отправки уведомления
+        return askeza
     }
     
     public func updateProgress(forTemplateID templateID: UUID, daysCompleted: Int, isCompleted: Bool = false) {
