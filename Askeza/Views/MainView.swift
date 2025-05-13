@@ -40,7 +40,7 @@ public struct MainView: View {
             .tag(AskezaViewModel.Tab.askezas)
             
             NavigationView {
-                    WorkshopV2View()
+                    WorkshopView()
             }
             .tabItem {
                 Label("Мастерская", systemImage: "figure.mind.and.body")

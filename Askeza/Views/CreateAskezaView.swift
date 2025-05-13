@@ -317,7 +317,10 @@ struct CreateAskezaView: View {
             wishStatus: wish.isEmpty ? nil : .waiting
         )
         
-        viewModel.addAskezaToActive(newAskeza)
+        // Используем DispatchQueue.main.async для вызова @MainActor-isolated метода
+        DispatchQueue.main.async {
+            viewModel.addAskezaToActive(newAskeza)
+        }
         
         if let onCreated = onCreated {
             onCreated(newAskeza)
