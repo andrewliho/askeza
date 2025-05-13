@@ -790,7 +790,7 @@ public class AskezaViewModel: ObservableObject {
     }
     
     // Метод для добавления новой аскезы
-    public func addAskeza(_ askeza: Askeza) {
+    public func addAskezaToActive(_ askeza: Askeza) {
         activeAskezas.append(askeza)
         saveData()
     }

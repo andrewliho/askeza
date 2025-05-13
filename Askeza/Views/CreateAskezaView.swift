@@ -317,7 +317,7 @@ struct CreateAskezaView: View {
             wishStatus: wish.isEmpty ? nil : .waiting
         )
         
-        viewModel.addAskeza(newAskeza)
+        viewModel.addAskezaToActive(newAskeza)
         
         if let onCreated = onCreated {
             onCreated(newAskeza)

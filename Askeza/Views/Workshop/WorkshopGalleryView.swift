@@ -354,7 +354,7 @@ struct WorkshopGalleryView: View {
                                     
                                     // Асинхронно добавляем аскезу в viewModel через Task
                                     Task { @MainActor in
-                                        viewModel.addAskeza(askeza)
+                                        viewModel.addAskezaToActive(askeza)
                                         print("WorkshopGalleryView: Аскеза добавлена в viewModel")
                                     }
                                     
