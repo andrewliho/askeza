@@ -414,5 +414,5 @@ struct TemplateDetailView: View {
         intention: "Стать более спокойным и сосредоточенным"
     )
     
-    return TemplateDetailView(template: template, templateStore: PracticeTemplateStore.shared)
+    TemplateDetailView(template: template, templateStore: PracticeTemplateStore.shared)
 } 

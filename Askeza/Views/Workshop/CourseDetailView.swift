@@ -199,5 +199,5 @@ struct CourseStepView: View {
         templateIDs: [UUID(), UUID(), UUID()]
     )
     
-    return CourseDetailView(course: course, templateStore: PracticeTemplateStore.shared)
+    CourseDetailView(course: course, templateStore: PracticeTemplateStore.shared)
 } 

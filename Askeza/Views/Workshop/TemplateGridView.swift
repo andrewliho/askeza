@@ -1,5 +1,9 @@
 import SwiftUI
 
+// Добавим импорт Common, если ShareSheet определена там
+import SwiftUI
+// Для ShareSheet используем общий компонент из приложения
+
 struct TemplateGridView: View {
     @ObservedObject private var templateStore: PracticeTemplateStore
     @Binding var searchText: String
@@ -302,16 +306,6 @@ struct TemplateCardView: View {
         
         showingShareSheet = true
     }
-}
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

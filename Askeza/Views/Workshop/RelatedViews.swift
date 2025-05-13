@@ -38,7 +38,7 @@ struct LoadingView: View {
 }
 
 // Кнопка для фильтрации
-struct FilterButton: View {
+fileprivate struct FilterButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
@@ -98,5 +98,4 @@ struct StatusBadge: View {
     }
     .padding()
     .background(AskezaTheme.backgroundColor)
-    .previewLayout(.sizeThatFits)
 } 
