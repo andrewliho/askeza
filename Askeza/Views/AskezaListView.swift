@@ -26,43 +26,51 @@ public struct AskezaListView: View {
     }
     
     private var filteredAskezas: [Askeza] {
-        if searchText.isEmpty {
-            switch selectedFilter {
-            case .active:
-                return viewModel.activeAskezas.filter { askeza in
-                    if case .lifetime = askeza.duration { return false }
+        // Сначала определяем базовый набор аскез в зависимости от выбранного фильтра
+        let baseAskezas: [Askeza]
+        
+        switch selectedFilter {
+        case .active:
+            // Фильтруем только активные аскезы (не пожизненные)
+            baseAskezas = viewModel.activeAskezas.filter { askeza in
+                if case .lifetime = askeza.duration { return false }
+                return true
+            }
+        case .completed:
+            // Для завершенных аскез
+            baseAskezas = viewModel.completedAskezas
+        case .lifetime:
+            // Фильтруем только пожизненные аскезы
+            baseAskezas = viewModel.activeAskezas.filter { askeza in
+                if case .lifetime = askeza.duration { return true }
+                return false
+            }
+        }
+        
+        // Проверяем наличие дубликатов в базовом наборе
+        var deduplicated = baseAskezas
+        if baseAskezas.count != Set(baseAskezas.map { $0.id }).count {
+            // Если есть дубликаты, удаляем их
+            var seenIDs = Set<UUID>()
+            deduplicated = baseAskezas.filter { askeza in
+                if seenIDs.contains(askeza.id) {
+                    print("⚠️ filteredAskezas: Обнаружен дубликат в исходном списке, ID: \(askeza.id), название: \(askeza.title)")
+                    return false
+                } else {
+                    seenIDs.insert(askeza.id)
                     return true
                 }
-            case .completed:
-                return viewModel.completedAskezas
-            case .lifetime:
-                return viewModel.activeAskezas.filter { askeza in
-                    if case .lifetime = askeza.duration { return true }
-                    return false
-                }
             }
+        }
+        
+        // Применяем поиск, если задан текст поиска
+        if searchText.isEmpty {
+            return deduplicated
         } else {
             let searchQuery = searchText.lowercased()
             
-            // Выбираем коллекцию на основе фильтра
-            let askezas: [Askeza]
-            switch selectedFilter {
-            case .active:
-                askezas = viewModel.activeAskezas.filter { askeza in
-                    if case .lifetime = askeza.duration { return false }
-                    return true
-                }
-            case .completed:
-                askezas = viewModel.completedAskezas
-            case .lifetime:
-                askezas = viewModel.activeAskezas.filter { askeza in
-                    if case .lifetime = askeza.duration { return true }
-                    return false
-                }
-            }
-            
-            // Применяем поиск к выбранной коллекции
-            return askezas.filter { askeza in
+            // Фильтруем по поисковому запросу
+            return deduplicated.filter { askeza in
                 let title = askeza.title.lowercased()
                 let intention = askeza.intention?.lowercased() ?? ""
                 let category = askeza.category.rawValue.lowercased()
@@ -268,6 +276,25 @@ public struct AskezaListView: View {
         var uniqueAskezas: [Askeza] = []
         var seenIDs: Set<UUID> = []
         
+        // Логируем список аскез для отладки
+        print("📊 AskezaListView: Отладка списка аскез, фильтр: \(selectedFilter.rawValue), количество: \(filteredAskezas.count)")
+        
+        // Поиск дубликатов в исходном списке
+        var idCount: [UUID: Int] = [:]
+        for askeza in filteredAskezas {
+            idCount[askeza.id, default: 0] += 1
+        }
+        
+        // Логируем найденные дубликаты в исходном списке
+        let duplicateIDs = idCount.filter { $0.value > 1 }.keys
+        if !duplicateIDs.isEmpty {
+            print("⚠️ AskezaListView: Исходные дубликаты в списке до фильтрации: \(duplicateIDs.count)")
+            for id in duplicateIDs {
+                print("⚠️ AskezaListView: ID \(id) встречается \(idCount[id] ?? 0) раз")
+            }
+        }
+        
+        // Фильтруем дубликаты
         for askeza in filteredAskezas {
             if !seenIDs.contains(askeza.id) {
                 uniqueAskezas.append(askeza)
@@ -276,6 +303,8 @@ public struct AskezaListView: View {
                 print("⚠️ AskezaListView: Обнаружен дубликат аскезы с ID \(askeza.id) - \(askeza.title) в filteredAskezas, пропускаем")
             }
         }
+        
+        print("📊 AskezaListView: После удаления дубликатов: \(uniqueAskezas.count) аскез")
         
         return uniqueAskezas
     }

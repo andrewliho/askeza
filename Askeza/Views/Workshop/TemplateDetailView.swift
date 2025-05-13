@@ -46,7 +46,7 @@ struct TemplateDetailView: View {
                             .padding(.horizontal)
                         
                         // Описание практики
-                        if !template.description.isEmpty {
+                        if !template.practiceDescription.isEmpty {
                             descriptionSection
                                 .padding(.horizontal)
                         }
@@ -238,7 +238,7 @@ struct TemplateDetailView: View {
                 .font(.headline)
                 .foregroundColor(AskezaTheme.textColor)
             
-            Text(template.description)
+            Text(template.practiceDescription)
                 .font(.body)
                 .foregroundColor(AskezaTheme.secondaryTextColor)
                 .fixedSize(horizontal: false, vertical: true)
@@ -284,7 +284,7 @@ struct TemplateDetailView: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(AskezaTheme.intentBackgroundColor)
+            .background(template.category.mainColor.opacity(0.1))
             .cornerRadius(12)
         }
         .padding()
@@ -298,20 +298,11 @@ struct TemplateDetailView: View {
                 .font(.headline)
                 .foregroundColor(AskezaTheme.textColor)
             
-            if let instructions = templateStore.getInstructions(for: template.templateId) {
-                ScrollView {
-                    Text(instructions)
-                        .font(.body)
-                        .foregroundColor(AskezaTheme.textColor)
-                        .padding(.horizontal, 8)
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                Text("Инструкции временно недоступны")
-                    .font(.body)
-                    .foregroundColor(AskezaTheme.secondaryTextColor)
-                    .padding()
-            }
+            // Простая заглушка для инструкций
+            Text("Инструкции временно недоступны")
+                .font(.body)
+                .foregroundColor(AskezaTheme.secondaryTextColor)
+                .padding()
         }
         .padding()
         .background(AskezaTheme.buttonBackground)
@@ -345,7 +336,14 @@ struct TemplateDetailView: View {
         
         // Если не найден по ID, пробуем по templateId
         if progress == nil {
-            progress = templateStore.getProgress(forTemplateID: template.templateId)
+            // Здесь нужно искать по ID, так как templateId - это строка, а не UUID
+            let allProgress = templateStore.getAllProgress()
+            progress = allProgress.first(where: { 
+                if let template = templateStore.getTemplate(byID: $0.templateID) {
+                    return template.templateId == self.template.templateId
+                }
+                return false
+            })
         }
         
         isLoadingData = false
@@ -406,7 +404,7 @@ struct TemplateDetailView: View {
         id: UUID(),
         templateId: "meditation-7",
         title: "7 дней медитации",
-        category: .vnimaniye,
+        category: .um,
         duration: 7,
         quote: "Медитация – это не бегство от реальности, а встреча с ней.",
         difficulty: 2,

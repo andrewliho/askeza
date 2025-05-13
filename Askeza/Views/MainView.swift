@@ -11,7 +11,8 @@ public struct MainView: View {
     // Разделяем флаги для каждого view
     @State private var showingGlobalCreateAskeza = false
     @State private var showingAddWish = false
-    @State private var showingSettings = false
+    // Временно скрыто
+    // @State private var showingSettings = false
     
     // Флаги для передачи в другие view
     @State private var listShowCreateAskeza = false
@@ -25,12 +26,15 @@ public struct MainView: View {
                     AskezaListView(viewModel: viewModel, showCreateAskeza: $listShowCreateAskeza)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
+                            // Временно скрыто
+                            /*
                             Button(action: {
                                 showingSettings = true
                             }) {
                                 Image(systemName: "gearshape")
                                     .foregroundColor(AskezaTheme.accentColor)
                             }
+                            */
                         }
                     }
             }
@@ -126,11 +130,14 @@ public struct MainView: View {
                 }
             }
         }
+        // Временно скрыто
+        /*
         .sheet(isPresented: $showingSettings) {
             NavigationView {
                 SettingsView(viewModel: viewModel)
             }
         }
+        */
         // Полностью отдельная форма создания аскезы для кнопки в MainView
         .sheet(isPresented: $showingGlobalCreateAskeza) {
             NavigationView {

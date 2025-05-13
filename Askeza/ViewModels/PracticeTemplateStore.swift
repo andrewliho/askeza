@@ -650,49 +650,66 @@ public class PracticeTemplateStore: ObservableObject {
         return progressService.getProgress(forTemplateID: templateID)
     }
     
+    public func getAllProgress() -> [TemplateProgress] {
+        return progressService.getAllProgress()
+    }
+    
     public func getStatus(forTemplateID templateID: UUID) -> TemplateStatus {
         return progressService.getStatus(forTemplateID: templateID)
     }
     
-    public func startTemplate(_ template: PracticeTemplate) -> Askeza? {
-        print("🏁 PracticeTemplateStore: Запуск шаблона \(template.title), ID: \(template.id)")
-        
-        // Проверяем, есть ли активный прогресс для этого шаблона
-        if let existingProgress = progressService.getProgress(forTemplateID: template.id) {
-            // Получаем статус существующего прогресса
-            let status = existingProgress.status(templateDuration: template.duration)
-            print("ℹ️ PracticeTemplateStore: Найден существующий прогресс, статус: \(status.rawValue)")
-            
-            if status == .inProgress {
-                // Если шаблон уже в процессе, не позволяем создать новую аскезу
-                print("⚠️ PracticeTemplateStore: Шаблон уже активен, новая аскеза не создается")
-                return nil
-            } else if status == .completed {
-                // Обновляем прогресс, если это повторный запуск завершенного шаблона
-                existingProgress.dateStarted = Date()
-                existingProgress.currentStreak = 0
-                existingProgress.daysCompleted = 0
-                
-                // Сохраняем изменения через сервис
-                try? modelContext.save()
-                print("✅ PracticeTemplateStore: Обновлен существующий прогресс для шаблона")
-            }
-        } else {
-            // Создаем новый прогресс только если его еще нет
-            let newProgress = TemplateProgress(
-                templateID: template.id,
-                dateStarted: Date()
-            )
-            
-            // Добавляем прогресс через сервис
-            modelContext.insert(newProgress)
-            try? modelContext.save()
-            
-            print("✅ PracticeTemplateStore: Создан новый прогресс для шаблона: \(template.title)")
+    // Новый метод для проверки и создания прогресса шаблона
+    public func getOrCreateProgress(forTemplateID templateID: UUID) -> TemplateProgress {
+        // Проверяем, есть ли уже прогресс для этого шаблона
+        if let existingProgress = getProgress(forTemplateID: templateID) {
+            print("✅ PracticeTemplateStore: Найден существующий прогресс для шаблона ID: \(templateID)")
+            return existingProgress
         }
         
-        // Создаем аскезу из шаблона, но с новым UUID каждый раз
-        // чтобы гарантировать уникальность
+        // Если прогресса нет, создаем новый
+        let newProgress = TemplateProgress(templateID: templateID)
+        
+        // Получаем информацию о шаблоне, если можем
+        if let template = getTemplate(byID: templateID) {
+            print("✅ PracticeTemplateStore: Создан новый прогресс для шаблона: \(template.title)")
+        } else {
+            print("⚠️ PracticeTemplateStore: Создан новый прогресс для неизвестного шаблона ID: \(templateID)")
+        }
+        
+        // Сохраняем прогресс
+        modelContext.insert(newProgress)
+        try? modelContext.save()
+        
+        return newProgress
+    }
+
+    // Метод для старта шаблона и создания аскезы
+    public func startTemplate(_ template: PracticeTemplate) -> Askeza? {
+        // Проверяем, что шаблон валидный
+        guard validateTemplateDuration(template) else {
+            print("❌ PracticeTemplateStore: Шаблон не прошел валидацию, отмена создания аскезы")
+            return nil
+        }
+        
+        // Получаем или создаем прогресс для шаблона
+        let templateProgress = getOrCreateProgress(forTemplateID: template.id)
+        
+        // Проверяем, если этот шаблон уже активен (находится в процессе выполнения)
+        if templateProgress.status(templateDuration: template.duration) == .inProgress {
+            print("⚠️ PracticeTemplateStore: Шаблон '\(template.title)' уже активен, нельзя создать дубликат")
+            return nil
+        }
+        
+        // Отмечаем, что шаблон запущен
+        // Обновляем дату начала и сбрасываем прогресс
+        templateProgress.dateStarted = Date()
+        templateProgress.daysCompleted = 0
+        templateProgress.isProcessingCompletion = false
+        
+        // Сохраняем обновленный прогресс
+        try? modelContext.save()
+        
+        // Создаем аскезу из шаблона
         let askeza = Askeza(
             id: UUID(),  // Генерируем новый UUID
             title: template.title,

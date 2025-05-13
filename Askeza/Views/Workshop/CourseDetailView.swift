@@ -193,10 +193,10 @@ struct CourseStepView: View {
     let course = CoursePath(
         id: UUID(),
         title: "Путь медитатора",
-        category: .vnimaniye,
-        difficulty: 3,
-        courseDescription: "Последовательные практики для развития навыков медитации и осознанности.",
-        templateIDs: [UUID(), UUID(), UUID()]
+        description: "Последовательные практики для развития навыков медитации и осознанности.",
+        templateIDs: [UUID(), UUID(), UUID()],
+        category: .um,
+        difficulty: 3
     )
     
     CourseDetailView(course: course, templateStore: PracticeTemplateStore.shared)

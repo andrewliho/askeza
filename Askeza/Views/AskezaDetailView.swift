@@ -77,6 +77,16 @@ fileprivate struct AskezaContentView: View {
     @ObservedObject var state: AskezaDetailViewState
     let dismiss: DismissAction
     
+    // Добавляем статистику связанного шаблона
+    private var templateInfo: (PracticeTemplate?, TemplateProgress?)? {
+        if let templateID = askeza.templateID {
+            let template = PracticeTemplateStore.shared.getTemplate(byID: templateID)
+            let progress = PracticeTemplateStore.shared.getProgress(forTemplateID: templateID)
+            return (template, progress)
+        }
+        return nil
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -110,6 +120,11 @@ fileprivate struct AskezaContentView: View {
                     askeza: askeza,
                     viewModel: viewModel
                 )
+                
+                // Если аскеза связана с шаблоном, показываем информацию из шаблона
+                if let (template, progress) = templateInfo {
+                    TemplateInfoView(template: template, progress: progress)
+                }
                 
                 WishSectionContainer(
                     askeza: askeza,
@@ -776,6 +791,117 @@ fileprivate extension View {
             state: state,
             dismiss: dismiss
         ))
+    }
+}
+
+// Добавляем представление для информации о шаблоне аскезы
+private struct TemplateInfoView: View {
+    let template: PracticeTemplate?
+    let progress: TemplateProgress?
+    
+    var body: some View {
+        if let template = template {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Информация о шаблоне")
+                            .font(.headline)
+                            .foregroundColor(AskezaTheme.textColor)
+                        
+                        if let progress = progress, progress.timesCompleted > 0 {
+                            Text("Пройдено \(progress.timesCompleted) \(pluralForm(progress.timesCompleted))")
+                                .font(.subheadline)
+                                .foregroundColor(AskezaTheme.accentColor)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Статус шаблона
+                    if let progress = progress {
+                        let status = progress.status(templateDuration: template.duration)
+                        TemplateStatusBadge(status: status)
+                    }
+                }
+                
+                // Если есть цитата из шаблона, показываем ее
+                if !template.quote.isEmpty {
+                    Text("«\(template.quote)»")
+                        .font(.system(size: 15, weight: .medium, design: .serif))
+                        .italic()
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                        .padding(.vertical, 4)
+                }
+                
+                // Если есть описание в шаблоне, показываем его
+                if !template.practiceDescription.isEmpty {
+                    Text(template.practiceDescription)
+                        .font(.body)
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                        .padding(.top, 2)
+                }
+            }
+            .padding()
+            .background(AskezaTheme.buttonBackground)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .padding(.horizontal)
+        }
+    }
+    
+    // Вспомогательная функция для склонения слова "раз"
+    private func pluralForm(_ number: Int) -> String {
+        let lastDigit = number % 10
+        let lastTwoDigits = number % 100
+        
+        if lastDigit == 1 && lastTwoDigits != 11 {
+            return "раз"
+        } else if (lastDigit >= 2 && lastDigit <= 4) && !(lastTwoDigits >= 12 && lastTwoDigits <= 14) {
+            return "раза"
+        } else {
+            return "раз"
+        }
+    }
+}
+
+// Компонент для отображения статуса шаблона
+private struct TemplateStatusBadge: View {
+    let status: TemplateStatus
+    
+    var body: some View {
+        Text(statusText)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(statusColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(statusColor.opacity(0.2))
+            .cornerRadius(6)
+    }
+    
+    private var statusText: String {
+        switch status {
+        case .notStarted:
+            return "Не начат"
+        case .inProgress:
+            return "В процессе"
+        case .completed:
+            return "Завершен"
+        case .mastered:
+            return "Освоен"
+        }
+    }
+    
+    private var statusColor: Color {
+        switch status {
+        case .notStarted:
+            return Color.gray
+        case .inProgress:
+            return Color.blue
+        case .completed:
+            return Color.green
+        case .mastered:
+            return Color.purple
+        }
     }
 }
 

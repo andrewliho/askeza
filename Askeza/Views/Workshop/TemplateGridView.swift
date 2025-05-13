@@ -88,7 +88,7 @@ struct TemplateGridView: View {
             if !searchText.isEmpty {
                 matches = matches && (
                     template.title.localizedCaseInsensitiveContains(searchText) ||
-                    template.description.localizedCaseInsensitiveContains(searchText) ||
+                    template.practiceDescription.localizedCaseInsensitiveContains(searchText) ||
                     template.intention.localizedCaseInsensitiveContains(searchText)
                 )
             }
@@ -175,6 +175,20 @@ struct TemplateCardView: View {
                         Text(status.rawValue)
                             .font(.caption)
                             .foregroundColor(status.color)
+                        
+                        // Добавляем информацию о количестве завершений, если есть
+                        if progress.timesCompleted > 0 {
+                            Spacer()
+                            HStack(spacing: 2) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AskezaTheme.accentColor)
+                                
+                                Text("Пройдено \(progress.timesCompleted) \(pluralForm(progress.timesCompleted))")
+                                    .font(.caption)
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                            }
+                        }
                     }
                     
                     // Показываем прогресс для активных шаблонов
@@ -268,6 +282,20 @@ struct TemplateCardView: View {
             return "Пожизненно"
         } else {
             return "\(days) дней"
+        }
+    }
+    
+    // Вспомогательная функция для склонения слова "раз"
+    private func pluralForm(_ number: Int) -> String {
+        let lastDigit = number % 10
+        let lastTwoDigits = number % 100
+        
+        if lastDigit == 1 && lastTwoDigits != 11 {
+            return "раз"
+        } else if (lastDigit >= 2 && lastDigit <= 4) && !(lastTwoDigits >= 12 && lastTwoDigits <= 14) {
+            return "раза"
+        } else {
+            return "раз"
         }
     }
     
