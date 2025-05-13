@@ -63,39 +63,9 @@ struct WorkshopGridView: View {
                                 progress: templateStore.getProgress(forTemplateID: template.id),
                                 onTap: {
                                     print("🔍 WorkshopGridView - Выбран шаблон: \(template.title)")
-                                    
-                                    // Проверяем, является ли это шаблоном "7 дней цифрового детокса"
-                                    let isDigitalDetox = template.title.contains("цифрового детокса") || template.title.contains("digital detox")
-                                    
-                                    // Для цифрового детокса используем увеличенную задержку
-                                    let loadDelay = isDigitalDetox ? 0.5 : 0.1
-                                    
-                                    // Если это шаблон цифрового детокса, обеспечиваем правильное templateId
-                                    let templateIdToLoad = isDigitalDetox ? "digital-detox-7" : template.templateId
-                                    
-                                    // Сначала загружаем данные шаблона
-                                    templateStore.preloadTemplateData(for: templateIdToLoad)
-                                    
-                                    // Создаем копию шаблона для гарантии
-                                    let templateCopy = isDigitalDetox ? 
-                                        PracticeTemplate(
-                                            templateId: "digital-detox-7",
-                                            title: template.title,
-                                            category: template.category,
-                                            duration: template.duration,
-                                            quote: template.quote,
-                                            difficulty: template.difficulty,
-                                            description: template.practiceDescription,
-                                            intention: template.intention
-                                        ) : template
-                                    
-                                    // Устанавливаем выбранный шаблон
-                                    selectedTemplate = templateCopy
-                                    
-                                    // Показываем detail view
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + loadDelay) {
-                                        showingTemplateDetail = true
-                                    }
+                                    // Сразу устанавливаем шаблон и показываем detail view
+                                    selectedTemplate = template
+                                    showingTemplateDetail = true
                                 }
                             )
                         }
@@ -110,19 +80,8 @@ struct WorkshopGridView: View {
             if let template = selectedTemplate {
                 templateDetailView(template)
                     .onDisappear {
-                        // Сбрасываем выбранный шаблон и перезагружаем данные после закрытия
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            selectedTemplate = nil
-                            
-                            // Выводим дополнительную информацию для диагностики
-                            print("🔄 WorkshopGridView - Sheet закрыт, сбрасываем выбранный шаблон: \(template.title)")
-                            
-                            // Обновляем данные для шаблона, если это был шаблон цифрового детокса
-                            if template.title.contains("цифрового детокса") || template.title.contains("digital detox") {
-                                print("🔄 WorkshopGridView - Принудительное обновление данных шаблона цифрового детокса")
-                                templateStore.preloadTemplateData(for: "digital-detox-7")
-                            }
-                        }
+                        // Просто сбрасываем выбранный шаблон
+                        selectedTemplate = nil
                     }
             } else {
                 // Вид с ошибкой, если шаблон не найден
@@ -229,44 +188,10 @@ struct WorkshopGridView: View {
     }
     
     private func templateDetailView(_ template: PracticeTemplate) -> some View {
-        VStack {
-            // Предварительно загружаем данные еще раз для надежности при показе sheet
-            TemplateDetailView(
-                template: template,
-                templateStore: templateStore
-            )
-            .onAppear {
-                // При появлении sheet, еще раз загружаем данные для надежности
-                print("🔍 WorkshopGridView - onAppear вызван для sheet с шаблоном: \(template.title)")
-                
-                // Еще раз загружаем данные, чтобы гарантировать доступность
-                templateStore.preloadTemplateData(for: template.templateId)
-                
-                // При отображении digital-detox-7 добавляем дополнительную обработку
-                if template.templateId == "digital-detox-7" || template.title.contains("цифрового детокса") {
-                    print("⚠️ WorkshopGridView - Обнаружен особый шаблон: цифровой детокс")
-                    
-                    // Серия повторных загрузок с увеличивающимися интервалами для гарантированной загрузки
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        print("🔄 WorkshopGridView - Повторная загрузка 1 для цифрового детокса")
-                        templateStore.preloadTemplateData(for: "digital-detox-7")
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            print("🔄 WorkshopGridView - Повторная загрузка 2 для цифрового детокса")
-                            templateStore.preloadTemplateData(for: "digital-detox-7")
-                            
-                            // Третья попытка с еще большей задержкой
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                print("🔄 WorkshopGridView - Финальная загрузка для цифрового детокса")
-                                templateStore.preloadTemplateData(for: "digital-detox-7")
-                            }
-                        }
-                    }
-                }
-            }
-            .background(AskezaTheme.backgroundColor)
-            .edgesIgnoringSafeArea(.all)
-        }
+        TemplateDetailView(
+            template: template,
+            templateStore: templateStore
+        )
     }
 }
 

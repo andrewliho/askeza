@@ -369,7 +369,7 @@ public class AskezaViewModel: ObservableObject {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleNewAskeza(_:)),
-            name: Notification.Name.addAskeza,
+            name: Notification.Name.refreshWorkshopData,
             object: nil
         )
     }

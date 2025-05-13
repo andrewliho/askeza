@@ -11,6 +11,9 @@ class WorkshopStateManager: ObservableObject {
     @Published var showingOnboarding = false
     
     let templateStore = PracticeTemplateStore.shared
+    var askezaViewModel: AskezaViewModel? = nil
+    
+    var observerToken: NSObjectProtocol? = nil
     
     func resetFilters() {
         selectedCategory = nil
@@ -65,11 +68,9 @@ class WorkshopStateManager: ObservableObject {
     func refreshAfterCompletion() {
         print("🔄 WorkshopV2View - Обновление после завершения шаблона")
         
-        // Принудительно обновляем все данные
+        // Выполняем обновление один раз без лишних задержек
         DispatchQueue.main.async {
             self.objectWillChange.send()
-            
-            // Уведомляем всех подписчиков о необходимости обновления
             NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
         }
     }
@@ -77,12 +78,12 @@ class WorkshopStateManager: ObservableObject {
 
 // Расширяем Notification.Name для специфических уведомлений в нашем приложении
 extension Notification.Name {
-    static let addAskeza = Notification.Name("AddAskezaNotification")
     static let refreshWorkshopData = Notification.Name("RefreshWorkshopDataNotification")
 }
 
 struct WorkshopV2View: View {
     @StateObject private var stateManager = WorkshopStateManager()
+    @EnvironmentObject var askezaViewModel: AskezaViewModel
     
     var body: some View {
         NavigationStack {
@@ -145,6 +146,9 @@ struct WorkshopV2View: View {
                 WorkshopOnboardingView()
             }
             .onAppear {
+                // Устанавливаем ссылку на viewModel
+                stateManager.askezaViewModel = askezaViewModel
+                
                 // Гарантируем, что шаблоны добавлены в хранилище только при первом запуске
                 if !UserDefaults.standard.bool(forKey: "templatesAdded") {
                     AdditionalTemplates.addTemplates(to: stateManager.templateStore)
@@ -161,39 +165,37 @@ struct WorkshopV2View: View {
                     UserDefaults.standard.set(true, forKey: "workshopOnboardingShown")
                 }
                 
-                // Настраиваем наблюдатель для обновления списка после добавления аскезы
-                NotificationCenter.default.addObserver(
-                    forName: Notification.Name.addAskeza,
-                    object: nil,
-                    queue: .main
-                ) { [weak stateManager] _ in
-                    // Обновляем список шаблонов
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        stateManager?.objectWillChange.send()
-                    }
-                }
-                
-                // Добавляем наблюдатель для обновления после завершения шаблона
-                NotificationCenter.default.addObserver(
+                // Настраиваем единый обработчик для обновления данных
+                // Используем слабую ссылку и немедленно вызываем objectWillChange
+                let token = NotificationCenter.default.addObserver(
                     forName: Notification.Name.refreshWorkshopData,
                     object: nil,
                     queue: .main
-                ) { [weak stateManager] _ in
-                    print("📢 WorkshopV2View - Получено уведомление о необходимости обновления данных")
-                    // Обновляем данные немедленно
-                    DispatchQueue.main.async {
-                        stateManager?.objectWillChange.send()
+                ) { [weak stateManager] notification in
+                    // Если получателя уже нет в памяти, просто выходим
+                    guard let stateManager = stateManager else { return }
+                    
+                    print("📢 WorkshopV2View - Получено уведомление об обновлении данных")
+                    
+                    // Если уведомление содержит аскезу, добавляем её в модель
+                    if let askeza = notification.object as? Askeza, 
+                       let askezaViewModel = stateManager.askezaViewModel {
+                        print("✅ WorkshopV2View - Получена новая аскеза: \(askeza.title)")
+                        askezaViewModel.addAskezaToActive(askeza)
                     }
                     
-                    // И еще раз с задержкой для гарантии обновления
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        stateManager?.objectWillChange.send()
-                    }
+                    // Обновляем UI сразу, без задержек
+                    stateManager.objectWillChange.send()
                 }
+                
+                // Сохраняем токен для последующего удаления
+                stateManager.observerToken = token
             }
             .onDisappear {
-                // Удаляем наблюдатели при исчезновении представления
-                NotificationCenter.default.removeObserver(self)
+                // Удаляем конкретный наблюдатель, а не все подряд
+                if let token = stateManager.observerToken {
+                    NotificationCenter.default.removeObserver(token)
+                }
             }
         }
     }
@@ -1020,7 +1022,7 @@ struct RecommendationCardWrapper: View {
                                         // Отправляем уведомление только один раз, с единственной целью - уведомить о создании аскезы
                                         // Само добавление аскезы в активные происходит через метод handleNewAskeza
                                         NotificationCenter.default.post(
-                                            name: Notification.Name.addAskeza,
+                                            name: Notification.Name.refreshWorkshopData,
                                             object: askeza
                                         )
                                         print("RecommendationCardWrapper: ✅ Отправлено уведомление о создании аскезы: \(askeza.title)")

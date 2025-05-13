@@ -2,9 +2,7 @@ import Foundation
 import SwiftUI
 
 // MARK: - Notification Names
-public extension Notification.Name {
-    static let addAskeza = Notification.Name("AddAskezaNotification")
-}
+// Удалено определение Notification.Name.addAskeza, так как используется только refreshWorkshopData
 
 // Расширение для типа Int, добавляющее свойство daysString
 extension Int {

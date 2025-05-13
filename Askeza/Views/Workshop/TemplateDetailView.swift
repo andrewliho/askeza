@@ -102,75 +102,60 @@ struct TemplateDetailView: View {
     
     // Загрузка всех необходимых данных
     private func loadData() {
-        print("🔍 TemplateDetailView - loadData() начата для шаблона: \(mutableTemplate.title), ID: \(mutableTemplate.templateId), UUID: \(mutableTemplate.id)")
+        print("🔍 TemplateDetailView - Загрузка данных для шаблона: \(mutableTemplate.title)")
         
-        // Сначала устанавливаем isDataLoaded в false для показа индикатора загрузки
-        isDataLoaded = false
+        // Сначала проверяем special cases
+        handleSpecialTemplates()
         
-        // Определяем является ли это шаблоном цифрового детокса
-        let isDigitalDetox = mutableTemplate.title.contains("цифрового детокса") || mutableTemplate.title.contains("digital detox")
-        
-        // Если это цифровой детокс, сначала фиксируем templateId и выполняем предзагрузку
-        if isDigitalDetox && mutableTemplate.templateId != "digital-detox-7" {
-            mutableTemplate.templateId = "digital-detox-7"
-            print("🔧 TemplateDetailView - Установлен корректный templateId для цифрового детокса")
+        // Сразу запускаем таймер показа UI, чтобы избежать "зависания"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            if !self.isDataLoaded {
+                self.isDataLoaded = true
+                print("⚠️ TemplateDetailView - Данные не загрузились вовремя, принудительно показываем UI")
+            }
         }
         
-        // Для гарантии создания цифрового детокса, выполняем принудительную загрузку с задержками
-        if isDigitalDetox {
-            // Попытка немедленной загрузки
-            templateStore.preloadTemplateData(for: "digital-detox-7")
-            
-            // Дополнительная загрузка с задержкой
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.templateStore.preloadTemplateData(for: "digital-detox-7")
-                
-                // После повторной загрузки данных шаблона можно продолжить
-                self.attemptToLoadData()
-            }
+        // Загружаем прогресс шаблона
+        if let progress = templateStore.getProgress(forTemplateID: mutableTemplate.id) {
+            print("✅ TemplateDetailView - Загружен прогресс: \(progress.daysCompleted) дней")
+            isDataLoaded = true
         } else {
-            // Для обычных шаблонов просто начинаем загрузку
-            attemptToLoadData()
+            print("🔍 TemplateDetailView - Прогресс не найден, пробуем загрузить по templateId")
+            
+            // Проверяем существование шаблона и создаем его при необходимости
+            if let template = templateStore.getTemplate(byTemplateId: mutableTemplate.templateId) {
+                print("✅ TemplateDetailView - Найден шаблон по templateId")
+                if mutableTemplate.id != template.id {
+                    mutableTemplate = template
+                    print("🔄 TemplateDetailView - Обновлен ID шаблона")
+                }
+                isDataLoaded = true
+            } else {
+                print("⚠️ TemplateDetailView - Шаблон не найден ни по ID, ни по templateId")
+                isDataLoaded = true // Всё равно показываем UI
+            }
         }
     }
     
-    // Функция для попытки загрузки данных
-    private func attemptToLoadData(attempt: Int = 1) {
-        print("🔄 TemplateDetailView - Попытка \(attempt) загрузки данных для шаблона: \(mutableTemplate.title)")
-        
-        // Проверяем особые случаи для templateId
-        var templateIdToLoad = mutableTemplate.templateId
-        let isDigitalDetox = mutableTemplate.title.contains("цифрового детокса") || mutableTemplate.title.contains("digital detox")
-        
-        if mutableTemplate.title.contains("Год железной дисциплины") && mutableTemplate.templateId.isEmpty {
-            print("🔍 TemplateDetailView - Обнаружен шаблон 'Год железной дисциплины' без templateId")
-            templateIdToLoad = "365-days-discipline"
-        } else if isDigitalDetox {
-            print("🔍 TemplateDetailView - Обнаружен шаблон 'Цифровой детокс'")
-            templateIdToLoad = "digital-detox-7"
-            
-            // Для цифрового детокса гарантируем существование шаблона
+    // Обработка специальных случаев для шаблонов
+    private func handleSpecialTemplates() {
+        // Цифровой детокс
+        if mutableTemplate.title.contains("цифрового детокса") || mutableTemplate.title.contains("digital detox") {
+            mutableTemplate.templateId = "digital-detox-7"
             ensureDigitalDetoxExists()
         }
         
-        // Загружаем данные с небольшой задержкой для особых случаев
-        if isDigitalDetox {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.templateStore.preloadTemplateData(for: templateIdToLoad)
-                self.checkProgress(attempt: attempt)
-            }
-        } else {
-            templateStore.preloadTemplateData(for: templateIdToLoad)
-            checkProgress(attempt: attempt)
+        // Другие специальные случаи
+        if mutableTemplate.title.contains("Год железной дисциплины") {
+            mutableTemplate.templateId = "365-days-discipline"
         }
     }
     
     // Гарантируем существование шаблона цифрового детокса
     private func ensureDigitalDetoxExists() {
         if templateStore.getTemplate(byTemplateId: "digital-detox-7") == nil {
-            print("⚠️ TemplateDetailView - Шаблон цифрового детокса не найден, создаем его")
+            print("⚠️ TemplateDetailView - Создаем шаблон цифрового детокса")
             
-            // Создаем шаблон с фиксированным ID
             let digitalDetox = PracticeTemplate(
                 templateId: "digital-detox-7",
                 title: "7 дней цифрового детокса",
@@ -182,91 +167,7 @@ struct TemplateDetailView: View {
                 intention: "Вернуть контроль над своим вниманием и временем"
             )
             
-            // Добавляем шаблон
             templateStore.addTemplate(digitalDetox)
-            print("✅ TemplateDetailView - Создан шаблон цифрового детокса")
-            
-            // Обновляем текущий шаблон для отображения
-            if mutableTemplate.id == digitalDetox.id || mutableTemplate.templateId == digitalDetox.templateId {
-                mutableTemplate = digitalDetox
-            }
-        }
-    }
-    
-    // Функция для проверки загруженного прогресса
-    private func checkProgress(attempt: Int) {
-        // Определяем является ли это шаблоном цифрового детокса
-        let isDigitalDetox = mutableTemplate.title.contains("цифрового детокса") || mutableTemplate.title.contains("digital detox")
-        
-        // Дополнительно пробуем загрузить по UUID
-        let progress = templateStore.getProgress(forTemplateID: mutableTemplate.id)
-        if let progress = progress {
-            print("✅ TemplateDetailView - Успешно загружен прогресс для шаблона: \(progress.daysCompleted) дней")
-            
-            // Если прогресс загрузился успешно, активируем UI
-            DispatchQueue.main.async {
-                isDataLoaded = true
-                print("✅ TemplateDetailView - Данные шаблона загружены, isDataLoaded: \(isDataLoaded)")
-            }
-        } else {
-            print("⚠️ TemplateDetailView - Не удалось загрузить прогресс для шаблона")
-            
-            // Для цифрового детокса пробуем еще раз с большей задержкой
-            let retryDelay = isDigitalDetox ? 0.5 : 0.3
-            let maxAttempts = isDigitalDetox ? 5 : 3
-            
-            // Если прогресс не загрузился и мы не достигли максимального числа попыток - пробуем еще раз
-            if attempt < maxAttempts {
-                print("🔄 TemplateDetailView - Планируем повторную попытку \(attempt + 1)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) {
-                    self.attemptToLoadData(attempt: attempt + 1)
-                }
-            } else {
-                // Если это цифровой детокс и после нескольких попыток не удалось
-                if isDigitalDetox {
-                    // Создаем шаблон заново для окончательной попытки
-                    print("🔄 TemplateDetailView - Последняя попытка для цифрового детокса - принудительное создание шаблона")
-                    
-                    let digitalDetox = PracticeTemplate(
-                        templateId: "digital-detox-7",
-                        title: "7 дней цифрового детокса",
-                        category: .osvobozhdenie,
-                        duration: 7,
-                        quote: "Иногда нужно отключиться, чтобы восстановить связь.",
-                        difficulty: 2,
-                        description: "Ограничение использования смартфона и социальных сетей до 30 минут в день.",
-                        intention: "Вернуть контроль над своим вниманием и временем"
-                    )
-                    
-                    // Добавляем шаблон
-                    templateStore.addTemplate(digitalDetox)
-                    
-                    // Обновляем текущий шаблон
-                    mutableTemplate = digitalDetox
-                    
-                    // Пробуем загрузить еще раз с искусственной задержкой
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        self.templateStore.preloadTemplateData(for: "digital-detox-7")
-                        
-                        // Искусственно создаем прогресс
-                        if let createdTemplate = self.templateStore.getTemplate(byTemplateId: "digital-detox-7") {
-                            print("✓ TemplateDetailView - Получен шаблон после финальной попытки")
-                            _ = self.templateStore.startTemplate(createdTemplate)
-                        }
-                        
-                        // В любом случае показываем UI
-                        DispatchQueue.main.async {
-                            self.isDataLoaded = true
-                        }
-                    }
-                } else {
-                    // Если и после нескольких попыток не удалось - все равно показываем UI
-                    print("⚠️ TemplateDetailView - Достигнуто максимальное число попыток, показываем UI без данных")
-                    DispatchQueue.main.async {
-                        isDataLoaded = true
-                    }
-                }
-            }
         }
     }
     
@@ -406,35 +307,22 @@ struct TemplateDetailView: View {
             .alert("Начать практику", isPresented: $state.showConfirmationDialog) {
                 Button("Отмена", role: .cancel) {}
                 Button("Добавить") {
-                    Task {
-                        if let askeza = templateStore.startTemplate(mutableTemplate) {
-                            // Создаем уникальный идентификатор операции для отладки
-                            let operationId = UUID().uuidString.prefix(8)
-                            print("✅ TemplateDetailView[\(operationId)]: Успешно создана аскеза \(askeza.title)")
-                            
-                            // Добавляем задержку для предотвращения конфликтов
-                            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунда
-                            
-                            // Выполняем отправку уведомления в основном потоке
-                            DispatchQueue.main.async {
-                                // Явно указываем, что мы отправляем уведомление
-                                print("📣 TemplateDetailView[\(operationId)]: Отправляем уведомление")
-                                
-                                NotificationCenter.default.post(
-                                    name: Notification.Name.addAskeza,
-                                    object: askeza
-                                )
-                                print("📮 TemplateDetailView[\(operationId)]: Отправлено уведомление о новой аскезе")
-                                
-                                // Закрываем экран после добавления аскезы
-                                dismiss()
-                            }
-                        } else {
-                            // Показываем сообщение об ошибке - шаблон уже активен
-                            print("❌ TemplateDetailView: Шаблон уже активен, невозможно создать аскезу повторно")
-                            state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
-                            state.showError = true
-                        }
+                    // Создаем аскезу без лишних операций
+                    if let askeza = templateStore.startTemplate(mutableTemplate) {
+                        print("✅ TemplateDetailView: Создана аскеза \(askeza.title)")
+                        
+                        // Отправляем уведомление без async/await и Task
+                        NotificationCenter.default.post(
+                            name: Notification.Name.refreshWorkshopData,
+                            object: askeza
+                        )
+                        
+                        // Закрываем экран после отправки уведомления
+                        dismiss()
+                    } else {
+                        // Показываем сообщение об ошибке - шаблон уже активен
+                        state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                        state.showError = true
                     }
                 }
             } message: {
