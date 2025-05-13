@@ -480,6 +480,15 @@ public class AskezaViewModel: ObservableObject {
                     daysCompleted: newProgress,
                     isCompleted: isCompleted
                 )
+                
+                // Отправляем уведомление для обновления данных в мастерской
+                print("📢 AskezaViewModel.updateProgress: Отправка уведомления об обновлении данных шаблона")
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: .refreshWorkshopData,
+                        object: nil
+                    )
+                }
             }
             
             // Обновляем аскезу в массиве
@@ -684,6 +693,15 @@ public class AskezaViewModel: ObservableObject {
         if updatedAnyAskeza {
             saveData()
             print("Обновлен прогресс аскез")
+            
+            // Отправляем уведомление для обновления данных в мастерской
+            print("📢 AskezaViewModel.updateAllAskezasProgress: Отправка уведомления об обновлении данных шаблонов")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: nil
+                )
+            }
         }
     }
     
