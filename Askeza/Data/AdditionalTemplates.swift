@@ -235,15 +235,47 @@ class AdditionalTemplates {
             )
         ]
         
-        // Добавляем все шаблоны в хранилище
-        let allTemplates = longTemplates + lifetimeTemplates + variedDifficultyTemplates
+        // Счетчики для отслеживания статистики добавления
+        var addedCount = 0
+        var skippedCount = 0
         
-        for template in allTemplates {
+        // Функция для безопасного добавления шаблона с проверкой на дубликаты
+        func safelyAddTemplate(_ template: PracticeTemplate) {
+            // Проверяем, существует ли уже шаблон с таким же templateId
+            if store.getTemplate(byTemplateId: template.templateId) != nil {
+                print("⚠️ Пропускаем добавление шаблона: \(template.title) - шаблон с templateId \(template.templateId) уже существует")
+                skippedCount += 1
+                return
+            }
+            
+            // Проверяем валидность шаблона
+            if !template.validateDuration() {
+                print("⚠️ Предупреждение: шаблон \(template.title) имеет несоответствие между названием и продолжительностью")
+            }
+            
+            // Добавляем шаблон только если он прошел проверки
             store.addTemplate(template)
             print("Добавлен шаблон: \(template.title)")
+            addedCount += 1
         }
         
-        print("Всего добавлено \(allTemplates.count) новых шаблонов.")
+        // Добавляем все шаблоны
+        for template in longTemplates {
+            safelyAddTemplate(template)
+        }
+        
+        // Пожизненные аскезы
+        for template in lifetimeTemplates {
+            safelyAddTemplate(template)
+        }
+        
+        // Аскезы разных сложностей
+        for template in variedDifficultyTemplates {
+            safelyAddTemplate(template)
+        }
+        
+        print("Итого: добавлено \(addedCount) новых шаблонов, пропущено \(skippedCount) дубликатов.")
+        print("📋 Templates added to store")
     }
     
     /// Преобразует шаблоны практик в PresetAskeza объекты для использования в WorkshopView

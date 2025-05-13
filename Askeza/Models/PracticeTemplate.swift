@@ -39,21 +39,50 @@ public class PracticeTemplate {
         self.courseID = courseID
     }
     
-    // Для создания Askeza из шаблона
-    public func createAskeza() -> Askeza {
-        let askezaDuration: AskezaDuration = duration == 0 ? .lifetime : .days(duration)
+    /// Проверяет соответствие названия шаблона и его продолжительности
+    /// - Returns: true - если название соответствует продолжительности, false - если есть несоответствие
+    public func validateDuration() -> Bool {
+        let title = self.title
+        let durationValue = self.duration
         
-        return Askeza(
-            title: title,
-            intention: intention,
-            startDate: Date(),
-            duration: askezaDuration,
-            progress: 0,
-            isCompleted: false,
-            category: category,
-            templateID: id  // Связываем Askeza с шаблоном
-        )
+        // Регулярное выражение для поиска числа дней в названии (например, "7 дней", "14-дневный", "30 дней")
+        let pattern = "(\\d+)[ -]*(дней|дня|день|дневный)"
+        
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: [])
+            let nsString = title as NSString
+            let matches = regex.matches(in: title, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            if !matches.isEmpty, let match = matches.first {
+                let dayRange = match.range(at: 1)
+                if dayRange.location != NSNotFound, let daysInTitle = Int(nsString.substring(with: dayRange)) {
+                    // Если в названии указано количество дней, оно должно соответствовать значению duration
+                    if daysInTitle != durationValue && durationValue != 0 { // 0 = lifetime
+                        print("⚠️ PracticeTemplate: В названии указано \(daysInTitle) дней, но в duration = \(durationValue) для шаблона \(title)")
+                        return false
+                    }
+                }
+            }
+            
+            // Если у нас пожизненная аскеза (duration = 0)
+            if durationValue == 0 && (title.contains("Пожизненно") || title.contains("пожизненно")) {
+                return true
+            }
+            
+            // Если в названии нет числа дней, или число соответствует duration, или это "Год" (365 дней)
+            if title.contains("Год") && durationValue == 365 {
+                return true
+            }
+            
+            return true
+        } catch {
+            print("❌ PracticeTemplate: Ошибка при проверке названия шаблона: \(error)")
+            return true // В случае ошибки разрешаем создание, чтобы не блокировать пользователя
+        }
     }
+    
+    // Метод createAskeza удален, так как создание аскезы теперь полностью перенесено
+    // в класс PracticeTemplateStore для лучшего контроля и избежания дублирования
 }
 
 public enum TemplateStatus: String, Codable {
@@ -90,6 +119,9 @@ public class TemplateProgress {
     public var timesCompleted: Int
     public var currentStreak: Int
     public var bestStreak: Int
+    // Флаг для отслеживания текущего процесса завершения
+    // Предотвращает двойное увеличение счетчика завершений
+    public var isProcessingCompletion: Bool = false
     
     public init(
         id: UUID = UUID(),
@@ -107,19 +139,45 @@ public class TemplateProgress {
         self.timesCompleted = timesCompleted
         self.currentStreak = currentStreak
         self.bestStreak = bestStreak
+        self.isProcessingCompletion = false
     }
     
     public func status(templateDuration: Int) -> TemplateStatus {
+        // Если шаблон завершен 3 или более раз или пользователь накопил 90+ дней практики,
+        // считаем его мастером
         if timesCompleted >= 3 || daysCompleted >= 90 {
             return .mastered
         }
+        
+        // Если шаблон еще не начат
         if dateStarted == nil {
             return .notStarted
         }
+        
+        // Если шаблон в процессе выполнения
+        if let startDate = dateStarted {
+            // Если это пожизненная практика или текущий прогресс меньше длительности шаблона
+            if templateDuration == 0 || daysCompleted < templateDuration {
+                // Проверяем, не прошло ли больше 3 дней с последнего обновления
+                let calendar = Calendar.current
+                let daysSinceLastUpdate = calendar.dateComponents([.day], from: startDate, to: Date()).day ?? 0
+                
+                // Если прогресс не обновлялся более 3 дней и не равен нулю, считаем шаблон завершенным
+                if daysSinceLastUpdate > 3 && daysCompleted > 0 {
+                    return .completed
+                }
+                
+                return .inProgress
+            }
+        }
+        
+        // Если шаблон завершен (прогресс >= длительности)
         if templateDuration > 0 && daysCompleted >= templateDuration {
             return .completed
         }
-        return .inProgress
+        
+        // По умолчанию считаем, что шаблон не начат
+        return .notStarted
     }
 }
 

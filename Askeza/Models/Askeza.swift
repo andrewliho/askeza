@@ -1,6 +1,32 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Notification Names
+public extension Notification.Name {
+    static let addAskeza = Notification.Name("AddAskezaNotification")
+}
+
+// Расширение для типа Int, добавляющее свойство daysString
+extension Int {
+    var daysString: String {
+        let lastDigit = self % 10
+        let lastTwoDigits = self % 100
+        
+        if lastTwoDigits >= 11 && lastTwoDigits <= 19 {
+            return "дней"
+        }
+        
+        switch lastDigit {
+        case 1:
+            return "день"
+        case 2, 3, 4:
+            return "дня"
+        default:
+            return "дней"
+        }
+    }
+}
+
 public enum AskezaDuration: Codable, Equatable {
     case days(Int)
     case lifetime
@@ -13,6 +39,17 @@ public enum AskezaDuration: Codable, Equatable {
             return "Пожизненно (∞)"
         }
     }
+    
+    // Явная реализация протокола Hashable
+    public func hash(into hasher: inout Hasher) {
+        switch self {
+        case .days(let count):
+            hasher.combine(0) // 0 - тег для case days
+            hasher.combine(count)
+        case .lifetime:
+            hasher.combine(1) // 1 - тег для case lifetime
+        }
+    }
 }
 
 public enum WishStatus: String, Codable {
@@ -21,7 +58,7 @@ public enum WishStatus: String, Codable {
     case unfulfilled = "Не исполнилось"
 }
 
-public struct Askeza: Identifiable, Codable {
+public struct Askeza: Identifiable, Codable, Hashable {
     public let id: UUID
     public let title: String
     public var intention: String?
@@ -33,18 +70,20 @@ public struct Askeza: Identifiable, Codable {
     public var wish: String?
     public var wishStatus: WishStatus?
     public var templateID: UUID?
+    public var isInCompletedList: Bool = false
     
     public init(id: UUID = UUID(),
-         title: String,
-         intention: String? = nil,
-         startDate: Date = Date(),
-         duration: AskezaDuration,
-         progress: Int = 0,
-         isCompleted: Bool = false,
-         category: AskezaCategory = .custom,
-         wish: String? = nil,
-         wishStatus: WishStatus? = nil,
-         templateID: UUID? = nil) {
+                title: String,
+                intention: String? = nil,
+                startDate: Date = Date(),
+                duration: AskezaDuration,
+                progress: Int = 0,
+                isCompleted: Bool = false,
+                category: AskezaCategory = .custom,
+                wish: String? = nil,
+                wishStatus: WishStatus? = nil,
+                templateID: UUID? = nil,
+                isInCompletedList: Bool = false) {
         self.id = id
         self.title = title
         self.intention = intention
@@ -56,6 +95,57 @@ public struct Askeza: Identifiable, Codable {
         self.wish = wish
         self.wishStatus = wishStatus
         self.templateID = templateID
+        self.isInCompletedList = isInCompletedList
+        
+        // Печатаем информацию о создании для отладки
+        print("📝 Askeza - Создана: \(title), ID: \(id), templateID: \(templateID?.uuidString ?? "нет")")
+    }
+    
+    // Явная реализация Hashable
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    public static func == (lhs: Askeza, rhs: Askeza) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    // Создает строковое представление продолжительности
+    public var durationString: String {
+        switch duration {
+        case .days(let days):
+            return "\(days) \(days.daysString)"
+        case .lifetime:
+            return "Пожизненно"
+        }
+    }
+    
+    // Вычисляет количество дней практики
+    public var daysPracticed: Int {
+        let calendar = Calendar.current
+        let startDateOnly = calendar.startOfDay(for: startDate)
+        let currentDateOnly = calendar.startOfDay(for: Date())
+        
+        let components = calendar.dateComponents([.day], from: startDateOnly, to: currentDateOnly)
+        return components.day ?? 0
+    }
+    
+    // Вычисляет, является ли аскеза пожизненной
+    public var isLifetime: Bool {
+        if case .lifetime = duration {
+            return true
+        }
+        return false
+    }
+    
+    // Возвращает общее количество дней для аскезы с фиксированной продолжительностью
+    public var totalDays: Int {
+        switch duration {
+        case .days(let days):
+            return days
+        case .lifetime:
+            return 0 // 0 обозначает бессрочную практику
+        }
     }
     
     public var daysLeft: Int? {

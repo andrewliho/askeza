@@ -406,21 +406,35 @@ struct TemplateDetailView: View {
             .alert("Начать практику", isPresented: $state.showConfirmationDialog) {
                 Button("Отмена", role: .cancel) {}
                 Button("Добавить") {
-                    if let askeza = templateStore.startTemplate(mutableTemplate) {
-                        // Используем NotificationCenter для передачи аскезы
-                        Task {
-                            NotificationCenter.default.post(
-                                name: Notification.Name("AddAskezaNotification"),
-                                object: askeza
-                            )
-                            print("Создана аскеза: \(askeza.title)")
+                    Task {
+                        if let askeza = templateStore.startTemplate(mutableTemplate) {
+                            // Создаем уникальный идентификатор операции для отладки
+                            let operationId = UUID().uuidString.prefix(8)
+                            print("✅ TemplateDetailView[\(operationId)]: Успешно создана аскеза \(askeza.title)")
+                            
+                            // Добавляем задержку для предотвращения конфликтов
+                            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунда
+                            
+                            // Выполняем отправку уведомления в основном потоке
+                            DispatchQueue.main.async {
+                                // Явно указываем, что мы отправляем уведомление
+                                print("📣 TemplateDetailView[\(operationId)]: Отправляем уведомление")
+                                
+                                NotificationCenter.default.post(
+                                    name: Notification.Name.addAskeza,
+                                    object: askeza
+                                )
+                                print("📮 TemplateDetailView[\(operationId)]: Отправлено уведомление о новой аскезе")
+                                
+                                // Закрываем экран после добавления аскезы
+                                dismiss()
+                            }
+                        } else {
+                            // Показываем сообщение об ошибке - шаблон уже активен
+                            print("❌ TemplateDetailView: Шаблон уже активен, невозможно создать аскезу повторно")
+                            state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
+                            state.showError = true
                         }
-                        dismiss()
-                    } else {
-                        // Показываем сообщение об ошибке - шаблон уже активен
-                        print("Ошибка: Шаблон уже активен и не может быть начат повторно")
-                        state.errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
-                        state.showError = true
                     }
                 }
             } message: {
@@ -547,6 +561,13 @@ struct TemplateDetailView: View {
         default:
             return .gray
         }
+    }
+    
+    // MARK: - Actions
+    
+    // Запуск практики
+    private func startAction() {
+        // ... existing code ...
     }
 }
 
