@@ -67,6 +67,13 @@ public struct MainView: View {
                 */
         }
         .tint(AskezaTheme.accentColor)
+        .onChange(of: viewModel.selectedTab) { oldTab, newTab in
+            // При переключении вкладок принудительно проверяем и перемещаем завершенные аскезы
+            viewModel.forceCheckCompletedAskezas()
+            
+            // Логируем для отладки
+            print("Переключение вкладки: \(oldTab) -> \(newTab)")
+        }
             
             // Плавающие кнопки
             VStack {

@@ -892,6 +892,7 @@ public class AskezaViewModel: ObservableObject {
         
         // Сначала проверяем завершенные аскезы, которые могли остаться в активных
         for (index, askeza) in activeAskezas.enumerated() {
+            // Проверяем явно отмеченные как завершенные
             if askeza.isCompleted {
                 // Если аскеза уже помечена как завершенная, но все еще в активных
                 if !completedAskezas.contains(where: { $0.id == askeza.id }) {
@@ -985,6 +986,69 @@ public class AskezaViewModel: ObservableObject {
         if !indexesToRemove.isEmpty || !askezasToComplete.isEmpty {
             saveData()
             print("Данные обновлены: перемещено \(askezasToComplete.count) завершенных аскез")
+        }
+    }
+    
+    // Метод для принудительной проверки и перемещения завершенных аскез
+    public func forceCheckCompletedAskezas() {
+        print("Принудительная проверка завершенных аскез")
+        
+        var askezasToComplete = [Askeza]()
+        var indexesToRemove = [Int]()
+        
+        // Проверяем все активные аскезы
+        for (index, askeza) in activeAskezas.enumerated() {
+            // Проверяем явно отмеченные как завершенные
+            if askeza.isCompleted {
+                // Если аскеза уже помечена как завершенная, но все еще в активных
+                if !completedAskezas.contains(where: { $0.id == askeza.id }) {
+                    completedAskezas.append(askeza)
+                }
+                indexesToRemove.append(index)
+                continue
+            }
+            
+            // Проверяем, не должна ли аскеза быть завершена по длительности
+            if case .days(let totalDays) = askeza.duration, askeza.progress >= totalDays {
+                var completedAskeza = askeza
+                completedAskeza.isCompleted = true
+                
+                // Если есть желание, устанавливаем статус "Ожидает исполнения"
+                if completedAskeza.wish != nil {
+                    completedAskeza.wishStatus = .waiting
+                }
+                
+                // Добавляем в список для завершения
+                askezasToComplete.append(completedAskeza)
+                indexesToRemove.append(index)
+                
+                // Обновляем статус связанного шаблона, если он есть
+                if let templateID = completedAskeza.templateID {
+                    PracticeTemplateStore.shared.updateProgress(
+                        forTemplateID: templateID,
+                        daysCompleted: totalDays,
+                        isCompleted: true
+                    )
+                }
+            }
+        }
+        
+        // Удаляем завершенные аскезы из активных (в обратном порядке, чтобы индексы не сбивались)
+        for index in indexesToRemove.sorted(by: >) {
+            activeAskezas.remove(at: index)
+        }
+        
+        // Добавляем новые завершенные аскезы в массив завершенных
+        for askeza in askezasToComplete {
+            if !completedAskezas.contains(where: { $0.id == askeza.id }) {
+                completedAskezas.append(askeza)
+            }
+        }
+        
+        // Сохраняем изменения
+        if !indexesToRemove.isEmpty || !askezasToComplete.isEmpty {
+            saveData()
+            print("Принудительная проверка: перемещено \(askezasToComplete.count) завершенных аскез")
         }
     }
     

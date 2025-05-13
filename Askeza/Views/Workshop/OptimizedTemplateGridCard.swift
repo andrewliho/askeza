@@ -228,8 +228,10 @@ struct OptimizedTemplateGridCard: View {
                             .background(Color.purple.opacity(0.7))
                             .cornerRadius(10)
                     }
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .background(AskezaTheme.buttonBackground)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
