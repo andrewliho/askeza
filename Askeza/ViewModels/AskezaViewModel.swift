@@ -454,6 +454,10 @@ public class AskezaViewModel: ObservableObject {
                 // Если прогресс превышает длительность, устанавливаем равным длительности и отмечаем завершенной
                 updatedAskeza.progress = days
                 updatedAskeza.isCompleted = true
+            } else if case .lifetime = updatedAskeza.duration {
+                // Для пожизненных аскез просто обновляем прогресс, они никогда не станут завершенными
+                updatedAskeza.progress = newProgress
+                print("🔄 AskezaViewModel: Обновлен прогресс пожизненной аскезы '\(updatedAskeza.title)' до \(newProgress) дней")
             } else {
                 // Иначе просто обновляем прогресс
                 updatedAskeza.progress = newProgress

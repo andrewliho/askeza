@@ -8,17 +8,16 @@ struct CreateAskezaView: View {
     
     @State private var title: String
     @State private var selectedDuration: Int = 7
-    @State private var intention: String = ""
+    @State private var wish: String = ""
     @State private var showingDurationPicker = false
-    @State private var showingCategoryPicker = false
     @State private var showingSuccessToast = false
     @State private var navigateToDetail = false
     @State private var createdAskeza: Askeza?
+    @State private var showingWishVisualization = false
     
     // Сохраняем начальные значения, чтобы иметь возможность восстановить их при необходимости
     private let initialTitle: String
-    private let initialIntention: String
-    private let initialCategory: AskezaCategory
+    private let initialWish: String
     
     private let durations = [
         1: "1 день",
@@ -31,63 +30,74 @@ struct CreateAskezaView: View {
     
     let existingAskeza: Askeza?
     let isExtending: Bool
-    @State private var selectedCategory: AskezaCategory
+    let categoryHint: AskezaCategory?
     
     init(viewModel: AskezaViewModel,
          isPresented: Binding<Bool>,
          presetTitle: String = "",
-         presetIntention: String = "",
+         presetWish: String = "",
          existingAskeza: Askeza? = nil,
-         category: AskezaCategory = .custom,
+         categoryHint: AskezaCategory? = nil,
          onCreated: ((Askeza) -> Void)? = nil) {
         self.viewModel = viewModel
         self._isPresented = isPresented
         
-        // Проверяем, создается ли своя аскеза (когда и title и intention пустые)
-        let isCustomAskeza = presetTitle.isEmpty && presetIntention.isEmpty && existingAskeza == nil
+        // Проверяем, создается ли своя аскеза (когда и title и wish пустые)
+        let isCustomAskeza = presetTitle.isEmpty && presetWish.isEmpty && existingAskeza == nil
         
         // Детальная отладочная информация
         print("--- Инициализация CreateAskezaView ---")
         print("presetTitle: '\(presetTitle)'")
-        print("presetIntention: '\(presetIntention)'")
-        print("category: \(category.rawValue)")
+        print("presetWish: '\(presetWish)'")
         print("isCustomAskeza: \(isCustomAskeza)")
-        
-        // Пробуем найти подробности шаблона, если это предустановленная аскеза
-        if !isCustomAskeza && !presetTitle.isEmpty {
-            // Пытаемся найти соответствующий шаблон в PresetAskezaStore
-            if let preset = PresetAskezaStore.shared.askezasByCategory[category]?.first(where: { $0.title == presetTitle }) {
-                print("Найден шаблон аскезы в PresetAskezaStore: \(preset.title)")
-                print("Описание: \(preset.description)")
-                print("Намерение: \(preset.intention)")
-            } else {
-                print("ВНИМАНИЕ: Шаблон аскезы не найден в PresetAskezaStore")
-            }
-        }
+        print("categoryHint: \(categoryHint?.rawValue ?? "нет")")
         
         // Убедимся, что у нас есть непустые значения, или пустые для своей аскезы
         let title = isCustomAskeza ? "" : presetTitle
-        let intention = isCustomAskeza ? "" : presetIntention
+        let wish = isCustomAskeza ? "" : presetWish
         
         self._title = State(initialValue: title)
-        self._intention = State(initialValue: intention)
+        self._wish = State(initialValue: wish)
         self.existingAskeza = existingAskeza
         self.isExtending = existingAskeza != nil
-        self._selectedCategory = State(initialValue: category)
+        self.categoryHint = categoryHint
         self.onCreated = onCreated
         
         // Сохраняем начальные значения
         self.initialTitle = title
-        self.initialIntention = intention
-        self.initialCategory = category
+        self.initialWish = wish
         
         // Более подробный вывод в консоль для отладки
-        print("CreateAskezaView initialized with title: '\(title)', intention: '\(intention)', category: \(category.rawValue), isCustom: \(isCustomAskeza)")
+        print("CreateAskezaView initialized with title: '\(title)', wish: '\(wish)', isCustom: \(isCustomAskeza)")
         print("--- Конец инициализации CreateAskezaView ---")
         
         // Автоматически устанавливаем пожизненную длительность для определенных аскез
-        if presetTitle == "Отказ от алкоголя" || presetTitle == "Отказ от никотина" {
+        let pожизненныеАскезы = [
+            "Отказ от алкоголя", 
+            "Отказ от никотина", 
+            "Вегетарианство", 
+            "Абсолютная честность", 
+            "Минимализм", 
+            "Пожизненно",
+            "Постоянная осознанность",
+            "Ежедневная благодарность"
+        ]
+        
+        // Категории, для которых предлагаем пожизненную аскезу по умолчанию
+        let lifetimeCategories: [AskezaCategory] = [.osvobozhdenie]
+        
+        // Проверяем, содержит ли название аскезы один из ключевых терминов для пожизненных аскез
+        let isLifetimeAskeza = !pожизненныеАскезы.filter { title.contains($0) }.isEmpty
+        
+        // Проверяем, относится ли аскеза к категории, которая обычно пожизненная
+        let isLifetimeCategory = categoryHint != nil && lifetimeCategories.contains(categoryHint!)
+        
+        // Устанавливаем пожизненную длительность, если подходит по названию или категории
+        if isLifetimeAskeza || isLifetimeCategory {
             self._selectedDuration = State(initialValue: -1)
+            print("🔄 CreateAskezaView: Установлена пожизненная длительность для аскезы '\(title)' в категории \(categoryHint?.rawValue ?? "нет")")
+        } else {
+            self._selectedDuration = State(initialValue: 7)
         }
     }
     
@@ -111,17 +121,9 @@ struct CreateAskezaView: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        HStack {
-                            Image(systemName: selectedCategory.systemImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(AskezaTheme.accentColor)
-                            
-                            Text(isExtending ? "Продление Аскезы" : "Создание Аскезы")
+                        Text(isExtending ? "Продление Аскезы" : "Создание Аскезы")
                             .font(AskezaTheme.titleFont)
                             .foregroundColor(AskezaTheme.textColor)
-                        }
                         
                         if isExtending {
                             VStack(spacing: 8) {
@@ -144,41 +146,12 @@ struct CreateAskezaView: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Намерение (необязательно)")
+                            Text("Желание (необязательно)")
                                 .font(AskezaTheme.bodyFont)
                                 .foregroundColor(AskezaTheme.secondaryTextColor)
                             
-                            AskezaTextField(placeholder: "Для чего ты это делаешь?", text: $intention)
+                            AskezaTextField(placeholder: "Что ты хочешь получить?", text: $wish)
                                 .disabled(isExtending)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Выберите категорию")
-                                .font(AskezaTheme.bodyFont)
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
-                            
-                            Button(action: {
-                                showingCategoryPicker = true
-                            }) {
-                                HStack {
-                                    let categoryColor = selectedCategory.mainColor
-                                    
-                                    Image(systemName: selectedCategory.systemImage)
-                                        .foregroundColor(categoryColor)
-                                    
-                                    Text(selectedCategory.rawValue)
-                                        .foregroundColor(Color.white)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .foregroundColor(categoryColor)
-                                }
-                                .padding()
-                                .background(AskezaTheme.buttonBackground)
-                                .cornerRadius(12)
-                            }
-                            .disabled(isExtending)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
@@ -202,7 +175,11 @@ struct CreateAskezaView: View {
                             }
                         }
                         
-                        AskezaButton(title: isExtending ? "Продлить" : "Дать обет") {
+                        AskezaButton(
+                            title: isExtending 
+                                ? "Продлить" 
+                                : (wish.isEmpty ? "Дать обет" : "Дать обет и визуализировать желание")
+                        ) {
                             createOrExtendAskeza()
                         }
                         .disabled(title.isEmpty)
@@ -263,78 +240,31 @@ struct CreateAskezaView: View {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button("Готово") {
                                 showingDurationPicker = false
-            }
-                            .foregroundColor(AskezaTheme.accentColor)
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showingCategoryPicker) {
-                NavigationView {
-                    ZStack {
-                        AskezaTheme.backgroundColor
-                            .ignoresSafeArea()
-                        
-                        List {
-                            ForEach(AskezaCategory.allCases.filter { $0 != .custom }, id: \.self) { category in
-                                Button(action: {
-                                    selectedCategory = category
-                                    showingCategoryPicker = false
-                                }) {
-                                    HStack {
-                                        let categoryColor = category.mainColor
-                                        
-                                        Image(systemName: category.systemImage)
-                                            .foregroundColor(categoryColor)
-                                        
-                                        Text(category.rawValue)
-                                            .foregroundColor(Color.white)
-                                        
-                                        Spacer()
-                                        
-                                        if selectedCategory == category {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(categoryColor)
-                                        }
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(AskezaTheme.buttonBackground)
-                                    .cornerRadius(8)
-                                }
-                                .listRowBackground(AskezaTheme.buttonBackground)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                            }
-                        }
-                        .listStyle(.insetGrouped)
-                        .scrollContentBackground(.hidden)
-                    }
-                    .navigationTitle("Выберите категорию")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Готово") {
-                                showingCategoryPicker = false
                             }
                             .foregroundColor(AskezaTheme.accentColor)
                         }
                     }
                 }
             }
-            .askezaToast(message: "Аскеза успешно продлена! 🎉", isPresented: $showingSuccessToast)
+            .askezaToast(message: "Аскеза успешно создана! 🎉", isPresented: $showingSuccessToast)
+            .sheet(isPresented: $showingWishVisualization) {
+                WishVisualizationView {
+                    finishCreatingAskeza()
+                }
+            }
         }
         .onAppear {
             // Проверяем данные при появлении представления
-            print("CreateAskezaView appeared with title: '\(title)', intention: '\(intention)', category: \(selectedCategory.rawValue)")
+            print("CreateAskezaView appeared with title: '\(title)', wish: '\(wish)'")
             
             // Если заголовок пустой, но у нас есть initialTitle, восстанавливаем его
             if title.isEmpty && !initialTitle.isEmpty {
                 title = initialTitle
             }
             
-            // Если намерение пустое, но у нас есть initialIntention, восстанавливаем его
-            if intention.isEmpty && !initialIntention.isEmpty {
-                intention = initialIntention
+            // Если желание пустое, но у нас есть initialWish, восстанавливаем его
+            if wish.isEmpty && !initialWish.isEmpty {
+                wish = initialWish
             }
         }
     }
@@ -360,28 +290,44 @@ struct CreateAskezaView: View {
             viewModel.updateAskeza(updatedAskeza)
             isPresented = false
         } else {
-            // Логика создания новой аскезы
-            let duration: AskezaDuration = selectedDuration == -1 ? .lifetime : .days(selectedDuration)
-            
-            let newAskeza = Askeza(
-                title: title,
-                intention: intention.isEmpty ? nil : intention,
-                duration: duration,
-                category: selectedCategory
-            )
-            
-            viewModel.addAskeza(newAskeza)
-            
-            if let onCreated = onCreated {
-                onCreated(newAskeza)
+            // Если есть желание, показываем экран визуализации
+            if !wish.isEmpty {
+                showingWishVisualization = true
+            } else {
+                // Если желания нет, создаем аскезу сразу
+                finishCreatingAskeza()
             }
-            
-            createdAskeza = newAskeza
-            showingSuccessToast = true
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                isPresented = false
-            }
+        }
+    }
+    
+    // Выносим логику создания аскезы в отдельный метод
+    private func finishCreatingAskeza() {
+        // Логика создания новой аскезы
+        let duration: AskezaDuration = selectedDuration == -1 ? .lifetime : .days(selectedDuration)
+        
+        // Используем .custom как категорию по умолчанию
+        let category: AskezaCategory = .custom
+        
+        let newAskeza = Askeza(
+            title: title,
+            intention: nil,
+            duration: duration,
+            category: category,
+            wish: wish.isEmpty ? nil : wish,
+            wishStatus: wish.isEmpty ? nil : .waiting
+        )
+        
+        viewModel.addAskeza(newAskeza)
+        
+        if let onCreated = onCreated {
+            onCreated(newAskeza)
+        }
+        
+        createdAskeza = newAskeza
+        showingSuccessToast = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isPresented = false
         }
     }
 }
@@ -392,7 +338,7 @@ struct CreateAskezaView: View {
         viewModel: AskezaViewModel(),
         isPresented: .constant(true),
         presetTitle: "Медитация каждое утро",
-        presetIntention: "Обрести внутренний покой"
+        presetWish: "Стать более спокойным и сосредоточенным"
     )
     }
 } 

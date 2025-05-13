@@ -304,18 +304,18 @@ struct AskezaCreationFlowView: View {
                             viewModel: viewModel,
                             isPresented: $showingCustomCreation,
                             presetTitle: presetTitle,
-                            presetIntention: presetIntention,
-                            category: presetCategory
+                            presetWish: presetIntention,
+                            categoryHint: presetCategory
                         ) { newAskeza in
                             createdAskeza = newAskeza
                             onCreated?(newAskeza)
                             isPresented = false
                         }
-                    } else if let category = selectedCategory {
+                    } else {
                         CreateAskezaView(
                             viewModel: viewModel,
                             isPresented: $showingCustomCreation,
-                            category: category
+                            categoryHint: selectedCategory
                         ) { newAskeza in
                             createdAskeza = newAskeza
                             onCreated?(newAskeza)
