@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import MarkdownUI
 // Импортируем общий файл с определением ShareSheet
 // Этот импорт не нужен, если он определен в том же модуле
 // import Common
@@ -301,8 +300,9 @@ struct TemplateDetailView: View {
             
             if let instructions = templateStore.getInstructions(for: template.templateId) {
                 ScrollView {
-                    Markdown(instructions)
-                        .markdownTheme(.custom)
+                    Text(instructions)
+                        .font(.body)
+                        .foregroundColor(AskezaTheme.textColor)
                         .padding(.horizontal, 8)
                 }
                 .frame(maxWidth: .infinity)
@@ -399,41 +399,6 @@ struct TemplateDetailView: View {
             return "\(days) дней"
         }
     }
-}
-
-// Расширение для создания пользовательской темы Markdown
-extension MarkdownTheme {
-    static let custom = MarkdownTheme(
-        font: .system(size: 16),
-        textColor: AskezaTheme.textColor,
-        linkColor: AskezaTheme.accentColor,
-        codeColor: AskezaTheme.accentColor,
-        backgroundColor: AskezaTheme.backgroundColor,
-        headingStyles: [
-            .init(
-                font: .system(.title, design: .default, weight: .bold),
-                color: AskezaTheme.textColor
-            ),
-            .init(
-                font: .system(.title2, design: .default, weight: .bold),
-                color: AskezaTheme.textColor
-            ),
-            .init(
-                font: .system(.title3, design: .default, weight: .bold),
-                color: AskezaTheme.textColor
-            )
-        ],
-        quoteStyle: .init(
-            font: .system(.body, design: .serif, weight: .regular),
-            color: AskezaTheme.intentColor,
-            backgroundColor: AskezaTheme.intentBackgroundColor.opacity(0.5)
-        ),
-        codeBlockStyle: .init(
-            font: .system(.body, design: .monospaced),
-            color: AskezaTheme.textColor,
-            backgroundColor: Color.gray.opacity(0.2)
-        )
-    )
 }
 
 #Preview {
