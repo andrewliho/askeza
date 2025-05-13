@@ -174,16 +174,19 @@ public class ProgressService {
             // Обновляем прогресс, если это повторный запуск завершенного шаблона
             existingProgress.dateStarted = Date()
             existingProgress.currentStreak = 0
+            
+            // Сохраняем изменения через progressService
+            updateProgress(forTemplateID: template.id, daysCompleted: 0)
         } else {
-            // Создаем новый прогресс
+            // Создаем новый прогресс через progressService
             let newProgress = TemplateProgress(
                 templateID: template.id,
                 dateStarted: Date()
             )
-            modelContext.insert(newProgress)
+            
+            // Добавляем прогресс через progressService
+            updateProgress(forTemplateID: template.id, daysCompleted: 0)
         }
-        
-        try? modelContext.save()
         
         // Создаем аскезу из шаблона
         let askeza = template.createAskeza()
@@ -595,16 +598,19 @@ public class PracticeTemplateStore: ObservableObject {
             // Обновляем прогресс, если это повторный запуск завершенного шаблона
             existingProgress.dateStarted = Date()
             existingProgress.currentStreak = 0
+            
+            // Сохраняем изменения через progressService
+            progressService.updateProgress(forTemplateID: template.id, daysCompleted: 0)
         } else {
-            // Создаем новый прогресс
+            // Создаем новый прогресс через progressService
             let newProgress = TemplateProgress(
                 templateID: template.id,
                 dateStarted: Date()
             )
-            modelContext.insert(newProgress)
+            
+            // Добавляем прогресс через progressService
+            progressService.updateProgress(forTemplateID: template.id, daysCompleted: 0)
         }
-        
-        try? modelContext.save()
         
         // Создаем аскезу из шаблона
         let askeza = template.createAskeza()
