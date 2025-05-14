@@ -131,10 +131,6 @@ public struct PresetAskezaStore {
                             description: "Прогулка как медитация в действии",
                             intention: "Улучшить здоровье и обрести ясность ума",
                             category: .telo),
-                PresetAskeza(title: "Бег каждый день",
-                            description: "Минимум 1 км или 10 минут пробежки в день",
-                            intention: "Укрепить тело и дух через постоянное движение",
-                            category: .telo),
                 PresetAskeza(title: "День поста",
                             description: "Очищение и контроль",
                             intention: "Очистить организм и развить самодисциплину",
@@ -249,6 +245,12 @@ public struct PresetAskezaStore {
                             category: .dukh)
             ],
             .otnosheniya: [
+                PresetAskeza(title: "30 дней оргазма",
+                            description: "Ежедневная практика оргазма для одного из партнеров для укрепления отношений и повышения качества жизни",
+                            intention: "Укрепить эмоциональную и физическую связь с партнером",
+                            category: .otnosheniya,
+                            difficulty: 3,
+                            duration: 30),
                 PresetAskeza(title: "Признательность",
                             description: "Ежедневно выражать искреннюю благодарность близким",
                             intention: "Укрепить связи с окружающими",
@@ -297,6 +299,24 @@ public struct PresetAskezaStore {
                             category: .otnosheniya)
             ],
             .velikie: [
+                PresetAskeza(title: "Пожизненный отказ от алкоголя",
+                            description: "Пожизненный полный отказ от любого алкоголя для духовного и физического очищения",
+                            intention: "Достичь абсолютного контроля над собой и освободиться от зависимости навсегда",
+                            category: .velikie,
+                            difficulty: 5,
+                            duration: 0),
+                PresetAskeza(title: "Пожизненный отказ от никотина",
+                            description: "Пожизненный отказ от курения, вейпов и любых никотиносодержащих продуктов",
+                            intention: "Достичь полной свободы от никотиновой зависимости и оздоровить организм",
+                            category: .velikie,
+                            difficulty: 5,
+                            duration: 0),
+                PresetAskeza(title: "Ежедневные спортивные тренировки",
+                            description: "Ежедневные интенсивные тренировки для достижения атлетической формы",
+                            intention: "Трансформировать тело и укрепить силу духа через регулярные физические нагрузки",
+                            category: .velikie,
+                            difficulty: 5,
+                            duration: 365),
                 PresetAskeza(title: "Путь воина",
                             description: "Ежедневное преодоление своих границ",
                             intention: "Становиться лучше себя вчерашнего",
@@ -452,9 +472,6 @@ public class AskezaViewModel: ObservableObject {
                 return
             }
             
-            // Обновляем прогресс
-            updatedAskeza.progress = newProgress
-            
             // Проверяем, должна ли аскеза быть завершена
             if case .days(let days) = updatedAskeza.duration, newProgress >= days {
                 // Если прогресс достиг или превысил длительность, отмечаем как завершенную
@@ -471,26 +488,23 @@ public class AskezaViewModel: ObservableObject {
                     )
                 }
                 
-                // Обновляем аскезу перед вызовом completeAskeza
-                activeAskezas[index] = updatedAskeza
+                // Обновляем прогресс аскезы
+                updatedAskeza.progress = newProgress
                 
-                // Вызываем метод завершения аскезы для перемещения в список завершенных
+                // ВАЖНО: Сначала удаляем аскезу из активных, чтобы предотвратить дублирование
+                activeAskezas.remove(at: index)
+                
+                // Затем вызываем метод завершения аскезы для перемещения в список завершенных
                 print("✅ AskezaViewModel.updateProgress: Переводим аскезу '\(updatedAskeza.title)' в завершенные")
                 completeAskeza(updatedAskeza)
-                return
-            } else if case .lifetime = updatedAskeza.duration {
-                // Для пожизненных аскез обновляем шаблон, если он есть
-                if let templateID = updatedAskeza.templateID {
-                    print("🔄 AskezaViewModel.updateProgress: Обновлен прогресс пожизненной аскезы '\(updatedAskeza.title)' до \(newProgress) дней")
-                    
-                    PracticeTemplateStore.shared.updateProgress(
-                        forTemplateID: templateID,
-                        daysCompleted: newProgress,
-                        isCompleted: false // Пожизненные аскезы не завершаются
-                    )
-                }
             } else {
-                // Для не завершенных аскез обновляем шаблон, если он есть
+                // Для незавершенных аскез обновляем прогресс
+                updatedAskeza.progress = newProgress
+                
+                // Обновляем аскезу в массиве активных
+                activeAskezas[index] = updatedAskeza
+                
+                // Обновляем шаблон, если он есть
                 if let templateID = updatedAskeza.templateID {
                     print("🔄 AskezaViewModel.updateProgress: Обновление прогресса для шаблона с ID: \(templateID), новый прогресс: \(newProgress)")
                     
@@ -500,26 +514,28 @@ public class AskezaViewModel: ObservableObject {
                         isCompleted: false
                     )
                 }
+                
+                saveData()
             }
-            
-            // Обновляем аскезу в массиве
-            activeAskezas[index] = updatedAskeza
-            
-            // Отправляем уведомление об обновлении данных шаблона
-            print("📢 AskezaViewModel.updateProgress: Отправка уведомления об обновлении данных шаблона")
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: .refreshWorkshopData,
-                    object: nil
-                )
-            }
-            
-            // Сохраняем изменения
-            saveData()
         }
     }
     
     public func completeAskeza(_ askeza: Askeza) {
+        // Проверяем, нет ли уже такой аскезы в завершенных (предотвращаем дубликат)
+        if completedAskezas.contains(where: { $0.id == askeza.id }) {
+            print("⚠️ AskezaViewModel: Аскеза '\(askeza.title)' с ID \(askeza.id) уже есть в списке завершенных, не добавляем дубликат")
+            
+            // Проверяем, остался ли дубликат в активных, и удаляем его
+            if let index = activeAskezas.firstIndex(where: { $0.id == askeza.id }) {
+                print("⚠️ AskezaViewModel: Удаляем дубликат аскезы '\(askeza.title)' из списка активных")
+                activeAskezas.remove(at: index)
+                saveData()
+            }
+            
+            return
+        }
+        
+        // Проверяем, существует ли аскеза в активных
         if let index = activeAskezas.firstIndex(where: { $0.id == askeza.id }) {
             var completedAskeza = activeAskezas[index]
             
@@ -562,16 +578,29 @@ public class AskezaViewModel: ObservableObject {
             
             // Удаляем из активных и добавляем в завершенные
             activeAskezas.remove(at: index)
-            
-            // Проверяем, нет ли уже такой аскезы в завершенных (предотвращаем дубликат)
-            if !completedAskezas.contains(where: { $0.id == completedAskeza.id }) {
-                completedAskezas.append(completedAskeza)
-                print("✅ AskezaViewModel: Аскеза '\(completedAskeza.title)' перемещена в завершенные")
-            } else {
-                print("⚠️ AskezaViewModel: Аскеза '\(completedAskeza.title)' с ID \(completedAskeza.id) уже есть в списке завершенных, не добавляем дубликат")
-            }
+            completedAskezas.append(completedAskeza)
+            print("✅ AskezaViewModel: Аскеза '\(completedAskeza.title)' перемещена в завершенные")
             
             saveData()
+        } else {
+            // Аскеза не найдена в активных, проверим, нет ли её уже в завершенных
+            if !completedAskezas.contains(where: { $0.id == askeza.id }) {
+                // Копируем аскезу в завершенные с флагами завершения
+                var completedAskeza = askeza
+                completedAskeza.isCompleted = true
+                completedAskeza.isInCompletedList = true
+                
+                if completedAskeza.wish != nil {
+                    completedAskeza.wishStatus = .waiting
+                }
+                
+                completedAskezas.append(completedAskeza)
+                print("✅ AskezaViewModel: Аскеза '\(completedAskeza.title)' добавлена в завершенные (не была найдена в активных)")
+                
+                saveData()
+            } else {
+                print("⚠️ AskezaViewModel: Аскеза '\(askeza.title)' уже есть в списке завершенных")
+            }
         }
     }
     
@@ -1199,5 +1228,37 @@ public class AskezaViewModel: ObservableObject {
         // Сохраняем внесенные изменения
         saveData()
         print("✅ AskezaViewModel.synchronizeWithTemplates: Синхронизация завершена")
+    }
+    
+    // Метод для обновления даты начала аскезы напрямую
+    public func updateAskezaStartDate(_ askeza: Askeza, newStartDate: Date) {
+        // Проверяем, что аскеза находится в активных
+        if let index = activeAskezas.firstIndex(where: { $0.id == askeza.id }) {
+            var updatedAskeza = activeAskezas[index]
+            
+            // Обновляем дату начала
+            updatedAskeza.startDate = newStartDate
+            
+            // Вычисляем новый прогресс на основе новой даты начала
+            let calendar = Calendar.current
+            let components = calendar.dateComponents([.day], from: newStartDate, to: Date())
+            let newProgress = max(0, components.day ?? 0)
+            
+            // Обновляем аскезу в массиве активных
+            activeAskezas[index] = updatedAskeza
+            
+            // Обновляем шаблон, если он есть
+            if let templateID = updatedAskeza.templateID {
+                print("🔄 AskezaViewModel.updateAskezaStartDate: Обновление даты начала для шаблона с ID: \(templateID), новый прогресс: \(newProgress)")
+                
+                PracticeTemplateStore.shared.updateProgress(
+                    forTemplateID: templateID,
+                    daysCompleted: newProgress,
+                    isCompleted: false
+                )
+            }
+            
+            saveData()
+        }
     }
 } 
