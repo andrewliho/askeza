@@ -5,7 +5,7 @@ import SwiftData
 @Model
 public class PracticeTemplate {
     @Attribute(.unique) public var id: UUID
-    public var templateId: String  // Уникальный строковой идентификатор для шаблона (например, "cold-shower-14")
+    public var templateId: String  // Уникальный строковой идентификатор для практики (например, "cold-shower-14")
     public var title: String
     public var category: AskezaCategory
     public var duration: Int       // дни (0 = lifetime)
@@ -13,7 +13,7 @@ public class PracticeTemplate {
     public var difficulty: Int     // 1-5
     public var practiceDescription: String
     public var intention: String
-    public var courseID: UUID?     // Связь с курсом, если шаблон является частью курса
+    public var courseID: UUID?     // Связь с курсом, если практика является частью курса
     
     public init(
         id: UUID = UUID(),
@@ -39,7 +39,7 @@ public class PracticeTemplate {
         self.courseID = courseID
     }
     
-    /// Проверяет соответствие названия шаблона и его продолжительности
+    /// Проверяет соответствие названия практики и ее продолжительности
     /// - Returns: true - если название соответствует продолжительности, false - если есть несоответствие
     public func validateDuration() -> Bool {
         let title = self.title
@@ -58,7 +58,7 @@ public class PracticeTemplate {
                 if dayRange.location != NSNotFound, let daysInTitle = Int(nsString.substring(with: dayRange)) {
                     // Если в названии указано количество дней, оно должно соответствовать значению duration
                     if daysInTitle != durationValue && durationValue != 0 { // 0 = lifetime
-                        print("⚠️ PracticeTemplate: В названии указано \(daysInTitle) дней, но в duration = \(durationValue) для шаблона \(title)")
+                        print("⚠️ PracticeTemplate: В названии указано \(daysInTitle) дней, но в duration = \(durationValue) для практики \(title)")
                         return false
                     }
                 }
@@ -76,7 +76,7 @@ public class PracticeTemplate {
             
             return true
         } catch {
-            print("❌ PracticeTemplate: Ошибка при проверке названия шаблона: \(error)")
+            print("❌ PracticeTemplate: Ошибка при проверке названия практики: \(error)")
             return true // В случае ошибки разрешаем создание, чтобы не блокировать пользователя
         }
     }
@@ -86,14 +86,14 @@ public class PracticeTemplate {
 }
 
 public enum TemplateStatus: String, Codable {
-    case notStarted = "Не начато"
-    case inProgress = "Активная"
-    case completed = "Завершено"
-    case mastered = "Мастер"
+    case notStarted = "active_today"
+    case inProgress = "active_ongoing"
+    case completed = "Завершена"
+    case mastered = "Освоена"
     
     public var icon: String {
         switch self {
-        case .notStarted: return "circle"
+        case .notStarted: return "flame.fill"
         case .inProgress: return "flame.fill"
         case .completed: return "checkmark.circle.fill"
         case .mastered: return "star.fill"
@@ -102,10 +102,21 @@ public enum TemplateStatus: String, Codable {
     
     public var color: Color {
         switch self {
-        case .notStarted: return .gray
+        case .notStarted: return .green
         case .inProgress: return .orange
         case .completed: return .green
         case .mastered: return .purple
+        }
+    }
+    
+    public var displayText: String {
+        switch self {
+        case .notStarted:
+            return "Не начата"
+        case .inProgress:
+            return "Активная"
+        default:
+            return self.rawValue
         }
     }
 }
@@ -143,40 +154,65 @@ public class TemplateProgress {
     }
     
     public func status(templateDuration: Int) -> TemplateStatus {
-        // Если шаблон завершен 3 или более раз или пользователь накопил 90+ дней практики,
-        // считаем его мастером
-        if timesCompleted >= 3 || daysCompleted >= 90 {
-            return .mastered
-        }
-        
-        // Если шаблон еще не начат
+        // Если практика еще не начата
         if dateStarted == nil {
             return .notStarted
         }
         
-        // Если шаблон в процессе выполнения
-        if let startDate = dateStarted {
-            // Если это пожизненная практика или текущий прогресс меньше длительности шаблона
-            if templateDuration == 0 || daysCompleted < templateDuration {
-                // Проверяем, не прошло ли больше 3 дней с последнего обновления
-                let calendar = Calendar.current
-                let daysSinceLastUpdate = calendar.dateComponents([.day], from: startDate, to: Date()).day ?? 0
-                
-                // Если прогресс не обновлялся более 3 дней и не равен нулю, считаем шаблон завершенным
-                if daysSinceLastUpdate > 3 && daysCompleted > 0 {
-                    return .completed
-                }
-                
-                return .inProgress
-            }
-        }
-        
-        // Если шаблон завершен (прогресс >= длительности)
-        if templateDuration > 0 && daysCompleted >= templateDuration {
+        // Проверка счетчика завершений - если практика была завершена хотя бы раз
+        // и не в процессе выполнения (daysCompleted меньше продолжительности)
+        // то она считается завершенной, а не активной
+        if timesCompleted > 0 && daysCompleted < templateDuration && templateDuration > 0 {
             return .completed
         }
         
-        // По умолчанию считаем, что шаблон не начат
+        // Проверяем, начата ли практика сегодня
+        let calendar = Calendar.current
+        let isStartedToday = calendar.isDateInToday(dateStarted!)
+        
+        // Пожизненные практики (templateDuration = 0) - всегда остаются в статусе "Активная"
+        // если они были начаты
+        if templateDuration == 0 {
+            // Проверяем, не прошло ли больше 3 дней с последнего обновления
+            let daysSinceLastUpdate = calendar.dateComponents([.day], from: dateStarted!, to: Date()).day ?? 0
+            
+            // Если начата сегодня или недавно - это активная практика
+            if isStartedToday || daysSinceLastUpdate <= 3 {
+                // Пожизненная активная практика
+                return .inProgress
+            } else if daysCompleted > 0 {
+                // Если не обновлялась более 3 дней, но был прогресс - практика "Освоена"
+                return .mastered
+            } else {
+                return .notStarted
+            }
+        }
+        
+        // Для обычных практик с конкретной длительностью
+        // Если практика завершена (прогресс >= длительности)
+        if daysCompleted >= templateDuration {
+            return .completed
+        }
+        
+        // Если практика освоена (завершена 3 или более раз)
+        if timesCompleted >= 3 {
+            return .mastered
+        }
+        
+        // Если практика в процессе выполнения и не была ранее завершена
+        if daysCompleted > 0 {
+            // Проверяем, не прошло ли больше 3 дней с последнего обновления
+            let daysSinceLastUpdate = calendar.dateComponents([.day], from: dateStarted!, to: Date()).day ?? 0
+            
+            // Если прогресс не обновлялся более 3 дней и не равен нулю, считаем практику завершенной
+            if daysSinceLastUpdate > 3 {
+                return .completed
+            }
+            
+            return .inProgress
+        }
+        
+        // По умолчанию считаем, что практика не начата
         return .notStarted
     }
 }
@@ -187,7 +223,7 @@ public class CoursePath {
     @Attribute(.unique) public var id: UUID
     public var title: String
     public var courseDescription: String
-    public var templateIDs: [UUID]  // ID шаблонов в порядке прохождения
+    public var templateIDs: [UUID]  // ID практик в порядке прохождения
     public var category: AskezaCategory
     public var difficulty: Int     // 1-5
     

@@ -278,13 +278,21 @@ public class ProgressService {
     
     func resetTemplateProgress(forTemplateID templateID: UUID) {
         if let existingProgress = getProgress(forTemplateID: templateID) {
-            // Сбрасываем прогресс шаблона
+            // Сбрасываем прогресс шаблона, но сохраняем счетчик завершений
             existingProgress.daysCompleted = 0
             existingProgress.currentStreak = 0
-            existingProgress.dateStarted = nil
+            existingProgress.dateStarted = Date() // Устанавливаем текущую дату как новую дату начала
+            existingProgress.isProcessingCompletion = false
             
             // Сохраняем изменения
             try? modelContext.save()
+            
+            print("🔄 ProgressService: Сброшен прогресс для шаблона ID: \(templateID), сохранено \(existingProgress.timesCompleted) завершений")
+            
+            // Отправляем уведомление для обновления интерфейса
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+            }
         }
     }
     
@@ -533,7 +541,7 @@ public class PracticeTemplateStore: ObservableObject {
     private let progressService: ProgressService
     private let userService: UserService
     private let recommendationEngine: RecommendationEngine
-    private let modelContext: ModelContext
+    private(set) public var modelContext: ModelContext
     
     public static let shared = PracticeTemplateStore()
     
@@ -694,10 +702,18 @@ public class PracticeTemplateStore: ObservableObject {
         // Получаем или создаем прогресс для шаблона
         let templateProgress = getOrCreateProgress(forTemplateID: template.id)
         
+        // Получаем текущий статус шаблона
+        let status = templateProgress.status(templateDuration: template.duration)
+        
         // Проверяем, если этот шаблон уже активен (находится в процессе выполнения)
-        if templateProgress.status(templateDuration: template.duration) == .inProgress {
+        if status == .inProgress {
             print("⚠️ PracticeTemplateStore: Шаблон '\(template.title)' уже активен, нельзя создать дубликат")
             return nil
+        }
+        
+        // Если шаблон был ранее завершен или освоен, это нормально - разрешаем перезапуск
+        if status == .completed || status == .mastered {
+            print("✅ PracticeTemplateStore: Перезапуск завершенного шаблона '\(template.title)' (статус: \(status.rawValue))")
         }
         
         // Отмечаем, что шаблон запущен
@@ -709,20 +725,33 @@ public class PracticeTemplateStore: ObservableObject {
         // Сохраняем обновленный прогресс
         try? modelContext.save()
         
+        // Проверяем, есть ли флаг создания пожизненной аскезы
+        let isLifetimeAskeza = UserDefaults.standard.bool(forKey: "createLifetimeAskeza")
+        
+        // Определяем длительность аскезы
+        let askezaDuration: AskezaDuration
+        if isLifetimeAskeza || template.duration == 0 {
+            askezaDuration = .lifetime
+            // Сбрасываем флаг после использования
+            UserDefaults.standard.set(false, forKey: "createLifetimeAskeza")
+        } else {
+            askezaDuration = .days(template.duration)
+        }
+        
         // Создаем аскезу из шаблона
         let askeza = Askeza(
             id: UUID(),  // Генерируем новый UUID
             title: template.title,
             intention: template.intention,
             startDate: Date(),
-            duration: template.duration == 0 ? .lifetime : .days(template.duration),
+            duration: askezaDuration,
             progress: 0,
             isCompleted: false,
             category: template.category,
             templateID: template.id  // Связываем Askeza с шаблоном
         )
         
-        print("🆕 PracticeTemplateStore: Создана аскеза: \(askeza.title), ID: \(askeza.id), templateID: \(askeza.templateID?.uuidString ?? "нет")")
+        print("🆕 PracticeTemplateStore: Создана аскеза: \(askeza.title), ID: \(askeza.id), templateID: \(askeza.templateID?.uuidString ?? "нет"), длительность: \(isLifetimeAskeza ? "пожизненная" : String(template.duration) + " дней")")
         
         // Возвращаем созданную аскезу без автоматической отправки уведомления
         return askeza
@@ -1058,7 +1087,7 @@ public class PracticeTemplateStore: ObservableObject {
             
             // Убедиться, что статус загружен
             let status = getStatus(forTemplateID: template.id)
-            print("✅ PracticeTemplateStore - Статус: \(status.rawValue)")
+            print("✅ PracticeTemplateStore - Статус: \(status.displayText)")
         } else {
             print("❌ PracticeTemplateStore - Шаблон не найден для ID: \(templateID)")
             
@@ -1116,6 +1145,24 @@ public class PracticeTemplateStore: ObservableObject {
 
     // MARK: - Cleaning and Maintenance Methods
 
+    /// Удаляет все шаблоны
+    public func resetAllTemplates() {
+        print("🧹 PracticeTemplateStore: Удаление всех шаблонов")
+        
+        // Удаляем все шаблоны из modelContext
+        for template in templates {
+            modelContext.delete(template)
+        }
+        
+        // Очищаем локальный массив
+        templates = []
+        
+        // Сохраняем изменения
+        try? modelContext.save()
+        
+        print("✅ PracticeTemplateStore: Все шаблоны удалены")
+    }
+
     /// Проверяет и удаляет дубликаты шаблонов по templateId
     public func cleanupDuplicateTemplates() {
         print("🧹 PracticeTemplateStore: Начата проверка дубликатов шаблонов")
@@ -1141,6 +1188,45 @@ public class PracticeTemplateStore: ObservableObject {
             try? modelContext.save()
         } else {
             print("✅ PracticeTemplateStore: Дубликаты шаблонов не обнаружены")
+        }
+    }
+
+    // Метод для обновления даты начала шаблона
+    public func updateTemplateStartDate(_ templateID: UUID, newStartDate: Date) {
+        guard let templateProgress = getProgress(forTemplateID: templateID) else {
+            print("⚠️ PracticeTemplateStore.updateTemplateStartDate: Не найден прогресс для шаблона ID: \(templateID)")
+            return
+        }
+        
+        // Обновляем дату начала
+        templateProgress.dateStarted = newStartDate
+        
+        // Сохраняем изменения
+        try? modelContext.save()
+        
+        print("✅ PracticeTemplateStore.updateTemplateStartDate: Обновлена дата начала для шаблона ID: \(templateID)")
+        
+        // Отправляем уведомление для обновления UI в мастерской
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .refreshWorkshopData,
+                object: nil
+            )
+        }
+    }
+
+    // Method to save the changes in the model context
+    public func saveContext() {
+        // Save all changes in the context
+        try? modelContext.save()
+        print("✅ PracticeTemplateStore: Context changes saved")
+        
+        // Notify about data changes
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .refreshWorkshopData,
+                object: nil
+            )
         }
     }
 }

@@ -392,6 +392,22 @@ public class AskezaViewModel: ObservableObject {
             name: Notification.Name.refreshWorkshopData,
             object: nil
         )
+        
+        // Подписываемся на уведомления о новых аскезах из шаблонов
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNewAskeza(_:)),
+            name: Notification.Name.askezaAddedFromTemplate,
+            object: nil
+        )
+        
+        // Подписываемся на уведомления о проверке активности шаблона
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(checkTemplateActivity(_:)),
+            name: Notification.Name.checkTemplateActivity,
+            object: nil
+        )
     }
     
     @objc private func handleNewAskeza(_ notification: Notification) {
@@ -609,6 +625,20 @@ public class AskezaViewModel: ObservableObject {
                 resetAskeza.startDate = Date() // Обновляем дату начала при сбросе
                 activeAskezas[index] = resetAskeza
                 saveData()
+                
+                // Если аскеза связана с шаблоном, сбрасываем прогресс шаблона
+                if let templateID = askeza.templateID {
+                    // Сбрасываем прогресс в мастерской, но сохраняем счетчик завершений
+                    PracticeTemplateStore.shared.resetTemplateProgress(templateID)
+                }
+                
+                // Отправляем уведомление для обновления UI
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: .refreshWorkshopData,
+                        object: resetAskeza
+                    )
+                }
             }
         }
     }
@@ -639,6 +669,14 @@ public class AskezaViewModel: ObservableObject {
             updatedAskeza.wishStatus = newWish != nil ? .waiting : nil  // Сбрасываем статус если удаляем желание
             activeAskezas[index] = updatedAskeza
             saveData()
+            
+            // Уведомляем об изменениях для обновления UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: updatedAskeza
+                )
+            }
         }
         
         // Проверяем также в завершенных аскезах
@@ -648,6 +686,14 @@ public class AskezaViewModel: ObservableObject {
             updatedAskeza.wishStatus = newWish != nil ? .waiting : nil
             completedAskezas[index] = updatedAskeza
             saveData()
+            
+            // Уведомляем об изменениях для обновления UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: updatedAskeza
+                )
+            }
         }
     }
     
@@ -658,6 +704,14 @@ public class AskezaViewModel: ObservableObject {
             updatedAskeza.wishStatus = status
             activeAskezas[index] = updatedAskeza
             saveData()
+            
+            // Уведомляем об изменениях для обновления UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: updatedAskeza
+                )
+            }
         }
         
         // Проверяем в завершенных аскезах
@@ -666,6 +720,14 @@ public class AskezaViewModel: ObservableObject {
             updatedAskeza.wishStatus = status
             completedAskezas[index] = updatedAskeza
             saveData()
+            
+            // Уведомляем об изменениях для обновления UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: updatedAskeza
+                )
+            }
         }
     }
     
@@ -1141,7 +1203,7 @@ public class AskezaViewModel: ObservableObject {
                     }
                     
                     // Если аскеза отмечена как завершенная, но шаблон нет - синхронизируем
-                    if askeza.isCompleted && status == .inProgress {
+                    if askeza.isCompleted && status == .inProgress && !templateProgress.isProcessingCompletion {
                         print("⚠️ AskezaViewModel.synchronizeWithTemplates: Аскеза '\(askeza.title)' завершена, но шаблон нет - исправляем")
                         
                         // Определяем, сколько дней было выполнено
@@ -1152,7 +1214,7 @@ public class AskezaViewModel: ObservableObject {
                             daysCompleted = askeza.progress
                         }
                         
-                        // Обновляем прогресс шаблона
+                        // Обновляем прогресс шаблона только если процесс завершения не запущен
                         PracticeTemplateStore.shared.updateProgress(
                             forTemplateID: templateID,
                             daysCompleted: daysCompleted,
@@ -1160,13 +1222,13 @@ public class AskezaViewModel: ObservableObject {
                         )
                     }
                     
-                    // Синхронизируем прогресс по дням между аскезой и шаблоном
-                    if !askeza.isCompleted && templateProgress.daysCompleted != askeza.progress {
+                    // Синхронизируем прогресс по дням между аскезой и шаблоном для активных аскез
+                    if !askeza.isCompleted && status == .inProgress && templateProgress.daysCompleted != askeza.progress {
                         // Берем максимальное значение из двух источников
                         let maxProgress = max(templateProgress.daysCompleted, askeza.progress)
                         
                         if maxProgress != askeza.progress {
-                            print("⚠️ AskezaViewModel.synchronizeWithTemplates: Различается прогресс для '\(askeza.title)': аскеза=\(askeza.progress), шаблон=\(templateProgress.daysCompleted) - обновляем")
+                            print("⚠️ AskezaViewModel.synchronizeWithTemplates: Различается прогресс для '\(askeza.title)': аскеза=\(askeza.progress), шаблон=\(templateProgress.daysCompleted) - обновляем аскезу")
                             var updatedAskeza = askeza
                             updatedAskeza.progress = maxProgress
                             activeAskezas[index] = updatedAskeza
@@ -1200,9 +1262,9 @@ public class AskezaViewModel: ObservableObject {
                         daysCompleted = askeza.progress
                     }
                     
-                    // Если шаблон не отмечен как завершенный - синхронизируем
+                    // Если шаблон не отмечен как завершенный и не обрабатывается в данный момент - синхронизируем
                     let status = templateProgress.status(templateDuration: template.duration)
-                    if status != .completed && status != .mastered {
+                    if status != .completed && status != .mastered && !templateProgress.isProcessingCompletion {
                         print("⚠️ AskezaViewModel.synchronizeWithTemplates: Аскеза '\(askeza.title)' завершена, но шаблон нет - исправляем")
                         
                         // Обновляем прогресс шаблона
@@ -1212,6 +1274,8 @@ public class AskezaViewModel: ObservableObject {
                             isCompleted: true
                         )
                     }
+                } else {
+                    print("⚠️ AskezaViewModel.synchronizeWithTemplates: Для завершенной аскезы '\(askeza.title)' не найден шаблон с ID \(templateID)")
                 }
             }
         }
@@ -1219,6 +1283,14 @@ public class AskezaViewModel: ObservableObject {
         // Сохраняем внесенные изменения
         saveData()
         print("✅ AskezaViewModel.synchronizeWithTemplates: Синхронизация завершена")
+        
+        // Обновляем данные в мастерской
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .refreshWorkshopData,
+                object: nil
+            )
+        }
     }
     
     // Метод для обновления даты начала аскезы напрямую
@@ -1235,6 +1307,9 @@ public class AskezaViewModel: ObservableObject {
             let components = calendar.dateComponents([.day], from: newStartDate, to: Date())
             let newProgress = max(0, components.day ?? 0)
             
+            // Обновляем прогресс
+            updatedAskeza.progress = newProgress
+            
             // Обновляем аскезу в массиве активных
             activeAskezas[index] = updatedAskeza
             
@@ -1242,6 +1317,16 @@ public class AskezaViewModel: ObservableObject {
             if let templateID = updatedAskeza.templateID {
                 print("🔄 AskezaViewModel.updateAskezaStartDate: Обновление даты начала для шаблона с ID: \(templateID), новый прогресс: \(newProgress)")
                 
+                // Получаем прогресс шаблона
+                if let templateProgress = PracticeTemplateStore.shared.getProgress(forTemplateID: templateID) {
+                    // Если шаблон был "не начат", обновляем его дату начала
+                    if templateProgress.dateStarted == nil {
+                        // Устанавливаем дату начала шаблона
+                        PracticeTemplateStore.shared.updateTemplateStartDate(templateID, newStartDate: newStartDate)
+                    }
+                }
+                
+                // Обновляем прогресс шаблона
                 PracticeTemplateStore.shared.updateProgress(
                     forTemplateID: templateID,
                     daysCompleted: newProgress,
@@ -1250,6 +1335,70 @@ public class AskezaViewModel: ObservableObject {
             }
             
             saveData()
+            
+            // Уведомляем об изменениях для обновления UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: updatedAskeza
+                )
+            }
+        }
+    }
+    
+    // Метод для проверки активности шаблона
+    @objc private func checkTemplateActivity(_ notification: Notification) {
+        guard let templateID = notification.object as? UUID else {
+            print("⚠️ AskezaViewModel.checkTemplateActivity: Не передан templateID")
+            return
+        }
+        
+        print("🔍 AskezaViewModel.checkTemplateActivity: Проверка активности шаблона \(templateID)")
+        
+        // Проверяем, есть ли активная аскеза с таким templateID
+        let isActive = activeAskezas.contains { $0.templateID == templateID }
+        
+        // Если шаблон активен, но нет соответствующей записи в PracticeTemplateStore
+        if isActive {
+            print("✅ AskezaViewModel.checkTemplateActivity: Шаблон \(templateID) активен")
+            
+            // Обновляем информацию о прогрессе
+            if let activeAskeza = activeAskezas.first(where: { $0.templateID == templateID }) {
+                PracticeTemplateStore.shared.updateProgress(
+                    forTemplateID: templateID,
+                    daysCompleted: activeAskeza.progress,
+                    isCompleted: false
+                )
+            }
+        } else {
+            print("ℹ️ AskezaViewModel.checkTemplateActivity: Шаблон \(templateID) не активен")
+            
+            // Если шаблон не активен, но в PracticeTemplateStore он помечен как активный
+            // обновляем его статус на основе наличия завершений
+            if let progress = PracticeTemplateStore.shared.getProgress(forTemplateID: templateID),
+               let template = PracticeTemplateStore.shared.getTemplate(byID: templateID) {
+                
+                let status = progress.status(templateDuration: template.duration)
+                
+                // Если статус активный, но аскеза не активна, корректируем
+                if status == .inProgress && progress.timesCompleted > 0 {
+                    print("🔄 AskezaViewModel.checkTemplateActivity: Корректируем статус шаблона")
+                    
+                    // Сбрасываем прогресс, но сохраняем счетчик завершений
+                    progress.daysCompleted = 0
+                    
+                    // Сохраняем изменения
+                    PracticeTemplateStore.shared.saveContext()
+                }
+            }
+        }
+        
+        // Отправляем уведомление для обновления UI в мастерской
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .refreshWorkshopData,
+                object: nil
+            )
         }
     }
 } 

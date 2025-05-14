@@ -13,20 +13,18 @@ class TemplateDetailViewState: ObservableObject {
 
 struct TemplateDetailView: View {
     let template: PracticeTemplate
-    @ObservedObject var templateStore: PracticeTemplateStore
+    @Binding var isPresented: Bool
+    @EnvironmentObject var templateStore: PracticeTemplateStore
     @StateObject private var state = TemplateDetailViewState()
     @Environment(\.dismiss) private var dismiss
-    @State private var showingShareSheet = false
-    @State private var shareText = ""
     @State private var isLoadingData = true
     @State private var progress: TemplateProgress?
-    @State private var showingConfirmation = false
     @State private var errorMessage = ""
     @State private var showingError = false
     
-    init(template: PracticeTemplate, templateStore: PracticeTemplateStore) {
+    init(template: PracticeTemplate, isPresented: Binding<Bool>) {
         self.template = template
-        self.templateStore = templateStore
+        self._isPresented = isPresented
     }
     
     var body: some View {
@@ -63,9 +61,31 @@ struct TemplateDetailView: View {
                                 .padding(.horizontal)
                         }
                         
-                        // Кнопка старта
-                        startButton
-                            .padding()
+                        // Кнопки для практики в зависимости от статуса
+                        if let templateProgress = progress {
+                            let status = templateProgress.status(templateDuration: template.duration)
+                            // Показываем разные кнопки в зависимости от статуса практики
+                            switch status {
+                            case .inProgress:
+                                // Для активных практик показываем информационный блок
+                                activeStatusInfoView
+                            case .completed, .mastered:
+                                // Для завершенных и освоенных практик показываем инфоблок и кнопку "Повторить"
+                                VStack(spacing: 16) {
+                                    // Информационный блок о завершении
+                                    completedStatusInfoView(status: status, progress: templateProgress)
+                                    
+                                    // Кнопка для повторного запуска
+                                    restartPracticeButton
+                                }
+                            case .notStarted:
+                                // Для не начатых практик показываем кнопку "Начать"
+                                startPracticeButton
+                            }
+                        } else {
+                            // Если прогресс не найден, то практика точно не активна
+                            startPracticeButton
+                        }
                     }
                     .padding(.vertical)
                 }
@@ -73,13 +93,13 @@ struct TemplateDetailView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Закрыть") {
-                            dismiss()
+                            isPresented = false
                         }
                         .foregroundColor(AskezaTheme.accentColor)
                     }
                     
                     ToolbarItem(placement: .principal) {
-                        Text("Шаблон практики")
+                        Text("Практика")
                             .font(.headline)
                             .foregroundColor(AskezaTheme.textColor)
                     }
@@ -88,17 +108,6 @@ struct TemplateDetailView: View {
                     Button("OK", role: .cancel) {}
                 } message: {
                     Text(errorMessage)
-                }
-                .alert("Начать аскезу?", isPresented: $showingConfirmation) {
-                    Button("Отмена", role: .cancel) {}
-                    Button("Начать") {
-                        startPractice()
-                    }
-                } message: {
-                    Text("Вы действительно хотите начать практику '\(template.title)'?")
-                }
-                .sheet(isPresented: $showingShareSheet) {
-                    ShareSheet(activityItems: [shareText])
                 }
                 .onAppear {
                     loadData()
@@ -132,21 +141,30 @@ struct TemplateDetailView: View {
             // Статус, если практика уже начата
             if let progress = progress {
                 let status = progress.status(templateDuration: template.duration)
+                let isPermanent = template.duration == 0  // Пожизненная практика
                 
                 HStack {
                     Image(systemName: status.icon)
-                        .foregroundColor(status.color)
+                        .foregroundColor(isPermanent && (status == .inProgress || status == .mastered) ? Color.indigo : status.color)
                     
-                    Text(status.rawValue)
-                        .font(.subheadline)
-                        .foregroundColor(status.color)
+                    if status == .completed || status == .mastered {
+                        // Для завершенных практик показываем расширенную информацию
+                        Text(getExtendedStatusInfo(status, progress: progress, isPermanent: isPermanent))
+                            .font(.subheadline)
+                            .foregroundColor(isPermanent && status == .mastered ? Color.indigo : status.color)
+                    } else {
+                        // Для остальных показываем стандартный текст
+                        Text(getStatusText(status, isPermanent: isPermanent))
+                            .font(.subheadline)
+                            .foregroundColor(isPermanent && status == .inProgress ? Color.indigo : status.color)
+                    }
                 }
                 
-                // Прогресс бар для активных шаблонов
+                // Прогресс бар для активных практик
                 if status == .inProgress {
                     let progressValue = template.duration > 0 
                         ? Double(progress.daysCompleted) / Double(template.duration)
-                        : 0.05
+                        : min(1.0, Double(progress.daysCompleted) / 100.0)  // Для пожизненных показываем % до 100 дней
                         
                     VStack(spacing: 4) {
                         GeometryReader { geometry in
@@ -157,7 +175,7 @@ struct TemplateDetailView: View {
                                     .cornerRadius(4)
                                 
                                 Rectangle()
-                                    .fill(status.color)
+                                    .fill(isPermanent ? Color.indigo : status.color)
                                     .frame(width: geometry.size.width * min(1.0, progressValue), height: 8)
                                     .cornerRadius(4)
                             }
@@ -171,9 +189,15 @@ struct TemplateDetailView: View {
                             
                             Spacer()
                             
-                            Text("\(template.duration > 0 ? "\(Int(progressValue * 100))%" : "∞")")
-                                .font(.caption)
-                                .foregroundColor(AskezaTheme.secondaryTextColor)
+                            if isPermanent {
+                                Text("Пожизненная ∞")
+                                    .font(.caption)
+                                    .foregroundColor(Color.indigo)
+                            } else {
+                                Text("\(Int(progressValue * 100))%")
+                                    .font(.caption)
+                                    .foregroundColor(AskezaTheme.secondaryTextColor)
+                            }
                         }
                     }
                     .padding(.top, 4)
@@ -184,6 +208,50 @@ struct TemplateDetailView: View {
         .padding()
         .background(AskezaTheme.buttonBackground)
         .cornerRadius(16)
+    }
+    
+    // Добавляем кнопку "Начать практику"
+    private var startPracticeButton: some View {
+        Button(action: {
+            startPractice()
+        }) {
+            HStack {
+                Image(systemName: "play.fill")
+                Text("Начать практику")
+                    .fontWeight(.medium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(AskezaTheme.accentColor)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
+    }
+    
+    // Добавляем кнопку "Повторить практику" для завершенных практик
+    private var restartPracticeButton: some View {
+        Button(action: {
+            startPractice() // Используем тот же метод для запуска практики
+        }) {
+            HStack {
+                Image(systemName: "arrow.clockwise")
+                Text("Повторить практику")
+                    .fontWeight(.medium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.green, Color.green.opacity(0.8)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .foregroundColor(.white)
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
     }
     
     private var infoBlocks: some View {
@@ -309,20 +377,82 @@ struct TemplateDetailView: View {
         .cornerRadius(16)
     }
     
-    private var startButton: some View {
-        Button(action: {
-            showingConfirmation = true
-        }) {
-            HStack {
-                Image(systemName: "play.fill")
-                Text(startButtonText)
+    // Добавляем информационный блок для активных практик
+    private var activeStatusInfoView: some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            
+            Text("Практика уже активна")
+                .fontWeight(.medium)
+                .foregroundColor(AskezaTheme.secondaryTextColor)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(AskezaTheme.buttonBackground)
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
+    // Информационный блок для завершенных практик
+    private func completedStatusInfoView(status: TemplateStatus, progress: TemplateProgress) -> some View {
+        return HStack {
+            Image(systemName: status == .mastered ? "star.fill" : "checkmark.circle.fill")
+                .foregroundColor(status == .mastered ? .purple : .green)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status == .mastered ? "Практика освоена" : "Практика завершена")
+                    .fontWeight(.bold)
+                    .foregroundColor(status == .mastered ? .purple : .green)
+                
+                if progress.timesCompleted > 0 {
+                    Text("Пройдено \(progress.timesCompleted) \(pluralForm(progress.timesCompleted))")
+                        .font(.subheadline)
+                        .foregroundColor(AskezaTheme.secondaryTextColor)
+                }
+                
+                Text("Вы можете начать практику заново")
+                    .font(.caption)
+                    .foregroundColor(AskezaTheme.secondaryTextColor)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(AskezaTheme.accentColor)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-            .font(.headline)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            (status == .mastered ? Color.purple : Color.green)
+                .opacity(0.1)
+        )
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
+    // Получаем расширенную информацию о статусе практики для отображения
+    private func getExtendedStatusInfo(_ status: TemplateStatus, progress: TemplateProgress, isPermanent: Bool) -> String {
+        // Строка с основной информацией о статусе
+        var statusInfo = getStatusText(status, isPermanent: isPermanent)
+        
+        // Добавляем информацию о количестве прохождений
+        if progress.timesCompleted > 0 {
+            let timesStr = pluralForm(progress.timesCompleted)
+            statusInfo += " • Пройдено \(progress.timesCompleted) \(timesStr)"
+        }
+        
+        return statusInfo
+    }
+    
+    // Вспомогательная функция для склонения слова "раз"
+    private func pluralForm(_ number: Int) -> String {
+        let lastDigit = number % 10
+        let lastTwoDigits = number % 100
+        
+        if lastDigit == 1 && lastTwoDigits != 11 {
+            return "раз"
+        } else if (lastDigit >= 2 && lastDigit <= 4) && !(lastTwoDigits >= 12 && lastTwoDigits <= 14) {
+            return "раза"
+        } else {
+            return "раз"
         }
     }
     
@@ -346,48 +476,57 @@ struct TemplateDetailView: View {
             })
         }
         
+        // Если прогресс найден, проверяем его статус
+        if let currentProgress = progress {
+            // Проверяем, есть ли активная аскеза с таким templateID
+            let isActive = checkIfTemplateIsActiveInAskeza()
+            let currentStatus = currentProgress.status(templateDuration: template.duration)
+            
+            print("📊 TemplateDetailView.loadData: Статус шаблона: \(currentStatus.rawValue), активен в аскезах: \(isActive), завершений: \(currentProgress.timesCompleted)")
+            
+            // Если шаблон активен, но его статус не соответствует активному - исправляем
+            if isActive && currentStatus != .inProgress {
+                print("🔄 TemplateDetailView.loadData: Исправление статуса шаблона на Активный")
+                // Не меняем статус, так как это произойдет автоматически при следующем обновлении
+            }
+            
+            // Если шаблон не активен, но его статус активный, и есть хотя бы одно завершение - исправляем
+            if !isActive && currentStatus == .inProgress && currentProgress.timesCompleted > 0 {
+                print("🔄 TemplateDetailView.loadData: Исправление статуса шаблона на Завершен")
+                
+                // Сбрасываем прогресс до 0, сохраняя счетчик завершений
+                // Это приведет к тому, что status() вернет .completed вместо .inProgress
+                currentProgress.daysCompleted = 0
+                
+                // Если progressStatus = completed, но флаг isProcessingCompletion все еще активен - сбрасываем
+                if currentProgress.isProcessingCompletion {
+                    currentProgress.isProcessingCompletion = false
+                    print("🔄 TemplateDetailView.loadData: Сброс флага isProcessingCompletion")
+                }
+                
+                // Сохраняем изменения
+                templateStore.saveContext()
+                
+                // Тут не обновляем progress, так как обновления будут применены только 
+                // после сохранения и будут доступны при следующем loadData()
+            }
+        }
+        
         isLoadingData = false
     }
     
-    private func startPractice() {
-        Task {
-            if let askeza = templateStore.startTemplate(template) {
-                // Отправляем уведомление в основном потоке для обновления UI
-                DispatchQueue.main.async {
-                    // Обновляем локальный прогресс
-                    loadData()
-                    
-                    // Отправляем уведомление для обновления других компонентов
-                    NotificationCenter.default.post(
-                        name: .refreshWorkshopData,
-                        object: askeza
-                    )
-                    
-                    // Закрываем экран
-                    dismiss()
-                }
-            } else {
-                // Показываем ошибку
-                DispatchQueue.main.async {
-                    errorMessage = "Этот шаблон уже активен. Завершите текущую аскезу, прежде чем начать заново."
-                    showingError = true
-                }
-            }
-        }
-    }
-    
-    private var startButtonText: String {
-        if progress == nil {
-            return "Начать практику"
-        }
+    // Метод для проверки, есть ли активная аскеза с этим шаблоном
+    private func checkIfTemplateIsActiveInAskeza() -> Bool {
+        // Отправляем уведомление для проверки статуса в AskezaViewModel
+        // AskezaViewModel добавит активность на это уведомление
+        NotificationCenter.default.post(
+            name: .checkTemplateActivity,
+            object: template.id
+        )
         
-        let status = progress!.status(templateDuration: template.duration)
-        switch status {
-        case .notStarted: return "Начать"
-        case .inProgress: return "Продолжить"
-        case .completed: return "Повторить"
-        case .mastered: return "Начать снова"
-        }
+        // В реальности тут должен быть код, который получает ответ
+        // Но пока просто возвращаем false
+        return false
     }
     
     private func durationText(_ days: Int) -> String {
@@ -395,6 +534,85 @@ struct TemplateDetailView: View {
             return "Пожизненно"
         } else {
             return "\(days) дней"
+        }
+    }
+    
+    // Получаем текст статуса с учетом пожизненных практик
+    private func getStatusText(_ status: TemplateStatus, isPermanent: Bool) -> String {
+        if isPermanent && status == .inProgress {
+            return "Пожизненная ∞"
+        }
+        
+        if isPermanent && status == .mastered {
+            return "Освоена ∞"
+        }
+        
+        return status.displayText
+    }
+    
+    // Метод для начала практики
+    private func startPractice() {
+        print("🚀 TemplateDetailView: Начало практики \(template.title)")
+        
+        // Проверяем статус шаблона перед запуском
+        if let currentProgress = progress {
+            let currentStatus = currentProgress.status(templateDuration: template.duration)
+            print("📊 TemplateDetailView: Текущий статус шаблона перед запуском: \(currentStatus.rawValue)")
+            
+            // Если практика уже завершена, сначала сбрасываем прогресс
+            if currentStatus == .completed || currentStatus == .mastered || (currentStatus == .inProgress && currentProgress.timesCompleted > 0) {
+                print("🔄 TemplateDetailView: Сброс предыдущего прогресса для завершенной практики")
+                // Сбрасываем прогресс, но не удаляем запись о прошлом прохождении
+                templateStore.resetTemplateProgress(template.id)
+                
+                // Обновляем локальную переменную прогресса
+                progress = templateStore.getProgress(forTemplateID: template.id)
+            }
+        }
+        
+        if let askeza = templateStore.startTemplate(template) {
+            // Отправляем уведомление для добавления аскезы через AskezaViewModel
+            DispatchQueue.main.async {
+                print("✨ TemplateDetailView: Практика успешно начата, отправляем уведомление")
+                
+                // Перезагружаем прогресс шаблона после создания аскезы
+                self.loadData()
+                
+                // Принудительно синхронизируем статусы между шаблоном и аскезой
+                // Устанавливаем статус "в процессе" для только что созданной практики
+                if let updatedProgress = self.templateStore.getProgress(forTemplateID: self.template.id) {
+                    updatedProgress.dateStarted = Date()
+                    updatedProgress.daysCompleted = 0
+                    updatedProgress.isProcessingCompletion = false
+                    
+                    // Сохраняем изменения
+                    self.templateStore.saveContext()
+                    
+                    print("✅ TemplateDetailView: Статус шаблона успешно обновлен и синхронизирован")
+                }
+                
+                // Отправляем уведомление для обновления UI и добавления аскезы
+                NotificationCenter.default.post(
+                    name: .askezaAddedFromTemplate,
+                    object: askeza
+                )
+                
+                // Отправляем дополнительное уведомление для обновления мастерской
+                NotificationCenter.default.post(
+                    name: .refreshWorkshopData,
+                    object: nil
+                )
+                
+                // Закрываем экран деталей
+                isPresented = false
+            }
+        } else {
+            // Показываем ошибку, что практика уже активна
+            DispatchQueue.main.async {
+                print("⚠️ TemplateDetailView: Ошибка при начале практики - уже активна")
+                errorMessage = "Эта практика уже активна. Завершите текущую аскезу, прежде чем начать заново."
+                showingError = true
+            }
         }
     }
 }
@@ -412,5 +630,5 @@ struct TemplateDetailView: View {
         intention: "Стать более спокойным и сосредоточенным"
     )
     
-    TemplateDetailView(template: template, templateStore: PracticeTemplateStore.shared)
-} 
+    TemplateDetailView(template: template, isPresented: .constant(true))
+} // Обновлено

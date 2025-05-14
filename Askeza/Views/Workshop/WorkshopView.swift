@@ -6,8 +6,8 @@ class WorkshopStateManager: ObservableObject {
     @Published var selectedCategory: AskezaCategory? = nil
     @Published var selectedDifficulty: Int? = nil
     @Published var selectedDuration: Int? = nil
-    @Published var showingFilters = false
     @Published var showingOnboarding = false
+    @Published var forceRefresh: Bool = false
     
     let templateStore = PracticeTemplateStore.shared
     var askezaViewModel: AskezaViewModel? = nil
@@ -22,7 +22,11 @@ class WorkshopStateManager: ObservableObject {
     }
     
     func setupObservers() {
-        // Создаем только один обработчик обновления данных
+        if let token = observerToken {
+            NotificationCenter.default.removeObserver(token)
+            observerToken = nil
+        }
+        
         observerToken = NotificationCenter.default.addObserver(
             forName: .refreshWorkshopData,
             object: nil,
@@ -30,31 +34,54 @@ class WorkshopStateManager: ObservableObject {
         ) { [weak self] notification in
             guard let self = self else { return }
             
-            // Если уведомление содержит аскезу, добавляем её в модель
+            print("📢 WorkshopStateManager: Получено уведомление об обновлении данных")
+            
             if let askeza = notification.object as? Askeza, 
                let askezaViewModel = self.askezaViewModel {
-                // Используем DispatchQueue.main.async для вызова @MainActor-isolated метода
+                
+                print("📊 WorkshopStateManager: Обновление для аскезы: \(askeza.title)")
+                
+                if let templateID = askeza.templateID {
+                    print("🔄 WorkshopStateManager: Обновление прогресса для шаблона ID: \(templateID)")
+                    
+                    DispatchQueue.main.async {
+                        let isCompleted = askezaViewModel.completedAskezas.contains(where: { $0.id == askeza.id })
+                        
+                        self.templateStore.updateProgress(
+                            templateID: templateID,
+                            isCompleted: isCompleted,
+                            daysCompleted: askeza.progress
+                        )
+                        
+                        self.forceRefresh.toggle()
+                        self.objectWillChange.send()
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.forceRefresh.toggle()
+                        self.objectWillChange.send()
+                    }
+                }
+            } else {
                 DispatchQueue.main.async {
-                    askezaViewModel.addAskezaToActive(askeza)
+                    self.forceRefresh.toggle()
+                    self.objectWillChange.send()
                 }
             }
-            
-            // Обновляем UI немедленно
-            self.objectWillChange.send()
         }
     }
     
     deinit {
-        // Корректно убираем наблюдателя при удалении объекта
         if let token = observerToken {
             NotificationCenter.default.removeObserver(token)
         }
     }
 }
 
-// Расширяем Notification.Name для уведомлений мастерской
 extension Notification.Name {
     static let refreshWorkshopData = Notification.Name("RefreshWorkshopDataNotification")
+    static let askezaAddedFromTemplate = Notification.Name("AskezaAddedFromTemplateNotification")
+    static let checkTemplateActivity = Notification.Name("CheckTemplateActivityNotification")
 }
 
 struct WorkshopView: View {
@@ -68,77 +95,57 @@ struct WorkshopView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Поисковая строка
                     searchBar
                         .padding(.horizontal)
                         .padding(.vertical, 8)
                     
-                    // Фильтры категорий
                     categoryFilters
                     
-                    // Основной контент - галерея шаблонов
                     ScrollView {
                         LazyVStack(spacing: 24) {
-                            // Пути развития
                             pathsSection
+                                .id("paths_section_\(stateManager.forceRefresh)")
                             
-                            // Галерея шаблонов
                             TemplateGridView(
                                 templateStore: stateManager.templateStore,
                                 searchText: $stateManager.searchText,
                                 selectedCategory: $stateManager.selectedCategory,
                                 selectedDifficulty: $stateManager.selectedDifficulty,
-                                selectedDuration: $stateManager.selectedDuration
+                                selectedDuration: $stateManager.selectedDuration,
+                                forceRefresh: $stateManager.forceRefresh
                             )
                             .padding(.top, 8)
                         }
                         .padding(.bottom, 50)
                     }
+                    .refreshable {
+                        AdditionalTemplates.refreshTemplates(in: stateManager.templateStore)
+                        
+                        stateManager.objectWillChange.send()
+                    }
                 }
             }
             .navigationTitle("Мастерская")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        stateManager.showingFilters = true
-                    }) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                            .foregroundColor(AskezaTheme.accentColor)
-                    }
-                }
-            }
-            .sheet(isPresented: $stateManager.showingFilters) {
-                FilterSheetView(
-                    selectedDifficulty: $stateManager.selectedDifficulty,
-                    selectedDuration: $stateManager.selectedDuration,
-                    onReset: stateManager.resetFilters
-                )
-            }
             .sheet(isPresented: $stateManager.showingOnboarding) {
                 WorkshopOnboardingView()
             }
             .onAppear {
-                // Устанавливаем ссылку на viewModel
                 stateManager.askezaViewModel = askezaViewModel
                 
-                // Настраиваем обработчики
                 stateManager.setupObservers()
                 
-                // Гарантируем, что шаблоны добавлены в хранилище только при первом запуске
                 if !UserDefaults.standard.bool(forKey: "templatesAdded") {
                     AdditionalTemplates.addTemplates(to: stateManager.templateStore)
                     UserDefaults.standard.set(true, forKey: "templatesAdded")
                 }
                 
-                // Показываем онбординг при первом запуске
                 if !UserDefaults.standard.bool(forKey: "workshopOnboardingShown") {
                     stateManager.showingOnboarding = true
                     UserDefaults.standard.set(true, forKey: "workshopOnboardingShown")
                 }
             }
             .onDisappear {
-                // Корректно удаляем наблюдателя при исчезновении экрана
                 if let token = stateManager.observerToken {
                     NotificationCenter.default.removeObserver(token)
                     stateManager.observerToken = nil
@@ -146,8 +153,6 @@ struct WorkshopView: View {
             }
         }
     }
-    
-    // MARK: - UI Components
     
     private var searchBar: some View {
         HStack {
@@ -166,9 +171,9 @@ struct WorkshopView: View {
                 }
             }
         }
-        .padding(10)
+        .padding(12)
         .background(AskezaTheme.buttonBackground)
-        .cornerRadius(12)
+        .cornerRadius(16)
     }
     
     private var categoryFilters: some View {
@@ -181,8 +186,9 @@ struct WorkshopView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
         }
+        .background(AskezaTheme.backgroundColor)
     }
     
     private var pathsSection: some View {
@@ -213,33 +219,50 @@ struct WorkshopView: View {
         }
     }
     
-    // MARK: - Helper Functions
-    
     private func categoryButton(_ category: AskezaCategory?, text: String) -> some View {
         Button(action: {
-            if stateManager.selectedCategory == category {
-                stateManager.selectedCategory = nil
-            } else {
+            withAnimation {
                 stateManager.selectedCategory = category
             }
         }) {
             HStack(spacing: 6) {
                 if let category = category {
                     Image(systemName: category.systemImage)
-                        .font(.system(size: 14))
-                        .foregroundColor(stateManager.selectedCategory == category ? .white : category.mainColor)
+                        .font(.system(size: 12))
+                        .foregroundColor(category == stateManager.selectedCategory ? .white : category.mainColor)
+                } else {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 12))
+                        .foregroundColor(stateManager.selectedCategory == nil ? .white : AskezaTheme.accentColor)
                 }
                 
                 Text(text)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(stateManager.selectedCategory == category ? .white : AskezaTheme.textColor)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
             }
-            .padding(.horizontal, 16)
             .padding(.vertical, 8)
+            .padding(.horizontal, 12)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(stateManager.selectedCategory == category ? AskezaTheme.accentColor : AskezaTheme.buttonBackground)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(getBackgroundForCategory(category))
             )
+            .foregroundColor(getTextColorForCategory(category))
+        }
+    }
+    
+    private func getBackgroundForCategory(_ category: AskezaCategory?) -> Color {
+        if let category = category {
+            return category == stateManager.selectedCategory ? category.mainColor : category.mainColor.opacity(0.1)
+        } else {
+            return stateManager.selectedCategory == nil ? AskezaTheme.accentColor : AskezaTheme.accentColor.opacity(0.1)
+        }
+    }
+    
+    private func getTextColorForCategory(_ category: AskezaCategory?) -> Color {
+        if let category = category {
+            return category == stateManager.selectedCategory ? .white : category.mainColor
+        } else {
+            return stateManager.selectedCategory == nil ? .white : AskezaTheme.accentColor
         }
     }
 }
@@ -258,7 +281,6 @@ struct FilterSheetView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 24) {
-                    // Фильтр по сложности
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Сложность")
                             .font(.headline)
@@ -285,7 +307,6 @@ struct FilterSheetView: View {
                     .background(AskezaTheme.buttonBackground)
                     .cornerRadius(16)
                     
-                    // Фильтр по длительности
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Длительность")
                             .font(.headline)
@@ -357,8 +378,18 @@ struct FilterSheetView: View {
         Button(action: {
             if selectedDuration == days {
                 selectedDuration = nil
+                
+                if days == 0 {
+                    UserDefaults.standard.set(false, forKey: "createLifetimeAskeza")
+                }
             } else {
                 selectedDuration = days
+                
+                if days == 0 {
+                    UserDefaults.standard.set(true, forKey: "createLifetimeAskeza")
+                } else {
+                    UserDefaults.standard.set(false, forKey: "createLifetimeAskeza")
+                }
             }
         }) {
             Text(label)
@@ -381,7 +412,7 @@ struct WorkshopOnboardingView: View {
     let pages = [
         OnboardingPage(
             title: "Добро пожаловать в Мастерскую!",
-            description: "Здесь вы найдете кураторские шаблоны практик для самосовершенствования.",
+            description: "Здесь вы найдете кураторские практики для самосовершенствования.",
             imageName: "sparkles"
         ),
         OnboardingPage(
@@ -402,7 +433,6 @@ struct WorkshopOnboardingView: View {
                 .ignoresSafeArea()
             
             VStack {
-                // Индикатор прогресса
                 HStack(spacing: 8) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         Circle()
@@ -412,7 +442,6 @@ struct WorkshopOnboardingView: View {
                 }
                 .padding(.top, 20)
                 
-                // Основной контент
                 TabView(selection: $currentPage) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         onboardingView(for: pages[index])
@@ -421,7 +450,6 @@ struct WorkshopOnboardingView: View {
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 
-                // Кнопки
                 HStack {
                     if currentPage > 0 {
                         Button("Назад") {
@@ -501,7 +529,6 @@ struct CoursePathCardView: View {
             showingCourseDetail = true
         }) {
             VStack(alignment: .leading, spacing: 12) {
-                // Заголовок и категория
                 HStack {
                     Image(systemName: course.category.systemImage)
                         .foregroundColor(course.category.mainColor)
@@ -513,21 +540,21 @@ struct CoursePathCardView: View {
                         .lineLimit(1)
                 }
                 
-                // Описание
                 Text(course.courseDescription)
                     .font(.subheadline)
                     .foregroundColor(AskezaTheme.secondaryTextColor)
                     .lineLimit(2)
                 
-                // Шаги (визуализация)
                 HStack(spacing: 4) {
                     ForEach(0..<course.templateIDs.count, id: \.self) { index in
                         let templateID = course.templateIDs[index]
                         let status = templateStore.getStatus(forTemplateID: templateID)
+                        let template = templateStore.getTemplate(byID: templateID)
+                        let isPermanent = template?.duration == 0
                         
                         ZStack {
                             Circle()
-                                .fill(status.color)
+                                .fill(isPermanent && (status == .inProgress || status == .mastered) ? Color.indigo : status.color)
                                 .frame(width: 24, height: 24)
                             
                             Image(systemName: status.icon)
@@ -544,7 +571,6 @@ struct CoursePathCardView: View {
                 }
                 .padding(.vertical, 8)
                 
-                // Сложность
                 HStack {
                     Text("Сложность:")
                         .font(.caption)
