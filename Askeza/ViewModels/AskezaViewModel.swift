@@ -630,6 +630,27 @@ public class AskezaViewModel: ObservableObject {
                 if let templateID = askeza.templateID {
                     // Сбрасываем прогресс в мастерской, но сохраняем счетчик завершений
                     PracticeTemplateStore.shared.resetTemplateProgress(templateID)
+                    
+                    // Через небольшую задержку вызываем обновление для установки статуса "Активная"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                        guard let _ = self else { return }
+                        
+                        // Искусственно увеличиваем прогресс на 1 день для получения статуса "Активная"
+                        resetAskeza.progress = 1
+                        
+                        // Обновляем шаблон
+                        PracticeTemplateStore.shared.updateProgress(
+                            forTemplateID: templateID, 
+                            daysCompleted: 1,
+                            isCompleted: false
+                        )
+                        
+                        // Отправляем дополнительное уведомление для обновления UI
+                        NotificationCenter.default.post(
+                            name: .refreshWorkshopData,
+                            object: resetAskeza
+                        )
+                    }
                 }
                 
                 // Отправляем уведомление для обновления UI

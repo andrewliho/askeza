@@ -569,7 +569,7 @@ struct TemplateDetailView: View {
                 // Принудительно устанавливаем дату начала для корректного состояния "Активная"
                 if let resetProgress = templateStore.getProgress(forTemplateID: template.id) {
                     resetProgress.dateStarted = Date()
-                    resetProgress.daysCompleted = 0
+                    resetProgress.daysCompleted = 1  // Устанавливаем прогресс 1 день для гарантии статуса "Активная"
                     resetProgress.isProcessingCompletion = false
                     
                     // Сохраняем изменения
@@ -581,8 +581,12 @@ struct TemplateDetailView: View {
                     }
                 }
                 
-                // Обновляем локальную переменную прогресса
-                progress = templateStore.getProgress(forTemplateID: template.id)
+                // Даем время на обновление
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Обновляем локальную переменную прогресса
+                    self.progress = self.templateStore.getProgress(forTemplateID: self.template.id)
+                    print("✅ TemplateDetailView: Прогресс обновлен после сброса, текущее значение: \(self.progress?.daysCompleted ?? 0)")
+                }
             }
         }
         
@@ -598,7 +602,7 @@ struct TemplateDetailView: View {
                 // Устанавливаем статус "в процессе" для только что созданной практики
                 if let updatedProgress = self.templateStore.getProgress(forTemplateID: self.template.id) {
                     updatedProgress.dateStarted = Date()
-                    updatedProgress.daysCompleted = 0
+                    updatedProgress.daysCompleted = 1  // Устанавливаем прогресс 1 день для гарантии статуса "Активная"
                     updatedProgress.isProcessingCompletion = false
                     
                     // Сохраняем изменения
@@ -618,6 +622,15 @@ struct TemplateDetailView: View {
                     name: .refreshWorkshopData,
                     object: nil
                 )
+                
+                // Через некоторое время отправляем дополнительное уведомление
+                // для гарантии обновления интерфейса
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    NotificationCenter.default.post(
+                        name: .refreshWorkshopData,
+                        object: nil
+                    )
+                }
                 
                 // Закрываем экран деталей
                 isPresented = false

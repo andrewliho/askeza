@@ -159,16 +159,27 @@ public class TemplateProgress {
             return .notStarted
         }
         
-        // Проверка счетчика завершений - если практика была завершена хотя бы раз
-        // и не в процессе выполнения (daysCompleted меньше продолжительности)
-        // то она считается завершенной, а не активной
-        if timesCompleted > 0 && daysCompleted < templateDuration && templateDuration > 0 {
-            return .completed
+        // Проверяем недавность начала практики
+        let calendar = Calendar.current
+        let isStartedRecently = calendar.isDateInToday(dateStarted!) || 
+                               calendar.isDateInYesterday(dateStarted!) ||
+                               calendar.dateComponents([.day], from: dateStarted!, to: Date()).day ?? 0 <= 3
+        
+        // Если практика была недавно начата (вне зависимости от истории завершений),
+        // считаем ее активной если у нее есть прогресс
+        if isStartedRecently && daysCompleted < templateDuration {
+            // Недавно начатая практика, еще не набравшая полный прогресс
+            if daysCompleted > 0 {
+                return .inProgress
+            }
         }
         
-        // Проверяем, начата ли практика сегодня
-        let calendar = Calendar.current
-        let isStartedToday = calendar.isDateInToday(dateStarted!)
+        // Проверка счетчика завершений - если практика была завершена хотя бы раз
+        // и не в процессе выполнения (daysCompleted равен 0), то она считается завершенной
+        // Это важно для шаблонов, которые были завершены, но еще не запущены заново
+        if timesCompleted > 0 && daysCompleted == 0 && !isStartedRecently {
+            return .completed
+        }
         
         // Пожизненные практики (templateDuration = 0) - всегда остаются в статусе "Активная"
         // если они были начаты
@@ -177,7 +188,7 @@ public class TemplateProgress {
             let daysSinceLastUpdate = calendar.dateComponents([.day], from: dateStarted!, to: Date()).day ?? 0
             
             // Если начата сегодня или недавно - это активная практика
-            if isStartedToday || daysSinceLastUpdate <= 3 {
+            if isStartedRecently || daysSinceLastUpdate <= 3 {
                 // Пожизненная активная практика
                 return .inProgress
             } else if daysCompleted > 0 {
@@ -195,7 +206,7 @@ public class TemplateProgress {
         }
         
         // Если практика освоена (завершена 3 или более раз)
-        if timesCompleted >= 3 {
+        if timesCompleted >= 3 && daysCompleted < templateDuration && daysCompleted == 0 {
             return .mastered
         }
         

@@ -289,7 +289,23 @@ public class ProgressService {
             
             print("🔄 ProgressService: Сброшен прогресс для шаблона ID: \(templateID), сохранено \(existingProgress.timesCompleted) завершений")
             
-            // Отправляем уведомление для обновления интерфейса
+            // Искусственно устанавливаем прогресс в 1 день, чтобы гарантировать статус "Активная"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                
+                // Устанавливаем минимальный прогресс (1 день), чтобы шаблон точно получил статус "Активная"
+                existingProgress.daysCompleted = 1
+                try? self.modelContext.save()
+                
+                print("✅ ProgressService: Установлен минимальный прогресс для шаблона ID: \(templateID), чтобы обеспечить статус 'Активная'")
+                
+                // Отправляем уведомление для обновления интерфейса
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+                }
+            }
+            
+            // Отправляем уведомление для обновления интерфейса сразу
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
             }
