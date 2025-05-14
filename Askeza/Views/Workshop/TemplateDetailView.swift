@@ -562,8 +562,24 @@ struct TemplateDetailView: View {
             // Если практика уже завершена, сначала сбрасываем прогресс
             if currentStatus == .completed || currentStatus == .mastered || (currentStatus == .inProgress && currentProgress.timesCompleted > 0) {
                 print("🔄 TemplateDetailView: Сброс предыдущего прогресса для завершенной практики")
+                
                 // Сбрасываем прогресс, но не удаляем запись о прошлом прохождении
                 templateStore.resetTemplateProgress(template.id)
+                
+                // Принудительно устанавливаем дату начала для корректного состояния "Активная"
+                if let resetProgress = templateStore.getProgress(forTemplateID: template.id) {
+                    resetProgress.dateStarted = Date()
+                    resetProgress.daysCompleted = 0
+                    resetProgress.isProcessingCompletion = false
+                    
+                    // Сохраняем изменения
+                    templateStore.saveContext()
+                    
+                    // Принудительно обновляем UI
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .refreshWorkshopData, object: nil)
+                    }
+                }
                 
                 // Обновляем локальную переменную прогресса
                 progress = templateStore.getProgress(forTemplateID: template.id)

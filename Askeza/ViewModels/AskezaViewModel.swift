@@ -1362,13 +1362,39 @@ public class AskezaViewModel: ObservableObject {
         if isActive {
             print("✅ AskezaViewModel.checkTemplateActivity: Шаблон \(templateID) активен")
             
-            // Обновляем информацию о прогрессе
-            if let activeAskeza = activeAskezas.first(where: { $0.templateID == templateID }) {
-                PracticeTemplateStore.shared.updateProgress(
-                    forTemplateID: templateID,
-                    daysCompleted: activeAskeza.progress,
-                    isCompleted: false
-                )
+            // Получаем прогресс шаблона
+            if let progress = PracticeTemplateStore.shared.getProgress(forTemplateID: templateID),
+               let template = PracticeTemplateStore.shared.getTemplate(byID: templateID) {
+                
+                // Проверяем, соответствует ли статус шаблона его активности
+                let status = progress.status(templateDuration: template.duration)
+                
+                // Обновляем информацию о прогрессе
+                if let activeAskeza = activeAskezas.first(where: { $0.templateID == templateID }) {
+                    // Если статус не соответствует активному, исправляем
+                    if status != .inProgress {
+                        print("🔄 AskezaViewModel.checkTemplateActivity: Принудительно обновляем статус шаблона на активный")
+                        
+                        // Устанавливаем дату начала, если она отсутствует
+                        if progress.dateStarted == nil {
+                            progress.dateStarted = activeAskeza.startDate
+                        }
+                        
+                        // Обновляем прогресс
+                        PracticeTemplateStore.shared.updateProgress(
+                            forTemplateID: templateID,
+                            daysCompleted: activeAskeza.progress,
+                            isCompleted: false
+                        )
+                    } else {
+                        // Если статус соответствует, просто синхронизируем прогресс
+                        PracticeTemplateStore.shared.updateProgress(
+                            forTemplateID: templateID,
+                            daysCompleted: activeAskeza.progress,
+                            isCompleted: false
+                        )
+                    }
+                }
             }
         } else {
             print("ℹ️ AskezaViewModel.checkTemplateActivity: Шаблон \(templateID) не активен")
