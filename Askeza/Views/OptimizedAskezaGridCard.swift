@@ -171,38 +171,7 @@ struct OptimizedAskezaGridCard: View {
         let scale = isCompleted && pulseAnimation && !askeza.isInCompletedList ? 1.03 : 1.0
         
         return ZStack {
-            // Создаем декоративный фон с несколькими иконками
-            ZStack {
-                // Большая иконка в центре
-                Image(systemName: askeza.category.systemImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 120, height: 120)
-                    .opacity(0.07)
-                    .rotationEffect(Angle(degrees: -15))
-                
-                // Маленькая иконка справа сверху
-                Image(systemName: askeza.category.systemImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 60)
-                    .opacity(0.05)
-                    .offset(x: 80, y: -40)
-                    .rotationEffect(Angle(degrees: 15))
-                
-                // Маленькая иконка слева снизу
-                Image(systemName: askeza.category.systemImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 70, height: 70)
-                    .opacity(0.05)
-                    .offset(x: -70, y: 30)
-                    .rotationEffect(Angle(degrees: 30))
-            }
-            .foregroundColor(.white)
-            .frame(width: UIScreen.main.bounds.width - 32, height: 140)
-            
-            // Градиент поверх изображения
+            // Градиент для фона
             RoundedRectangle(cornerRadius: 16)
                 .fill(fillGradient)
         }
@@ -392,25 +361,8 @@ struct OptimizedAskezaGridCard: View {
     // Количество завершений шаблона
     private var templateCompletionCountView: some View {
         Group {
-            if let (_, progress) = templateInfo, let timesCompleted = progress?.timesCompleted, timesCompleted > 0 {
-                HStack {
-                    Spacer()
-                    HStack(spacing: 2) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white)
-                        
-                        Text("Пройдено \(timesCompleted) \(pluralForm(timesCompleted))")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.black.opacity(0.3))
-                    .cornerRadius(8)
-                    Spacer()
-                }
-            }
+            // Пустая группа, так как переместили отображение в bottomActionRow
+            EmptyView()
         }
     }
     
@@ -438,6 +390,23 @@ struct OptimizedAskezaGridCard: View {
             }
             
             Spacer()
+            
+            // Информация о количестве прохождений шаблона (перемещено сюда)
+            if let (_, progress) = templateInfo, let timesCompleted = progress?.timesCompleted, timesCompleted > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white)
+                    
+                    Text("\(timesCompleted) \(pluralForm(timesCompleted))")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.green.opacity(0.5))
+                .cornerRadius(8)
+            }
             
             // Процент выполнения в правом нижнем углу (для активных аскез)
             if !isLifetime && !isCompleted {
