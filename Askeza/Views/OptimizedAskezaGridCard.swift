@@ -170,10 +170,45 @@ struct OptimizedAskezaGridCard: View {
         let shadowRadius = isCompleted ? 8.0 : 4.0
         let scale = isCompleted && pulseAnimation && !askeza.isInCompletedList ? 1.03 : 1.0
         
-        return RoundedRectangle(cornerRadius: 16)
-            .fill(fillGradient)
-            .shadow(color: shadowColor, radius: shadowRadius)
-            .scaleEffect(scale)
+        return ZStack {
+            // Создаем декоративный фон с несколькими иконками
+            ZStack {
+                // Большая иконка в центре
+                Image(systemName: askeza.category.systemImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 120, height: 120)
+                    .opacity(0.07)
+                    .rotationEffect(Angle(degrees: -15))
+                
+                // Маленькая иконка справа сверху
+                Image(systemName: askeza.category.systemImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 60, height: 60)
+                    .opacity(0.05)
+                    .offset(x: 80, y: -40)
+                    .rotationEffect(Angle(degrees: 15))
+                
+                // Маленькая иконка слева снизу
+                Image(systemName: askeza.category.systemImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 70, height: 70)
+                    .opacity(0.05)
+                    .offset(x: -70, y: 30)
+                    .rotationEffect(Angle(degrees: 30))
+            }
+            .foregroundColor(.white)
+            .frame(width: UIScreen.main.bounds.width - 32, height: 140)
+            
+            // Градиент поверх изображения
+            RoundedRectangle(cornerRadius: 16)
+                .fill(fillGradient)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: shadowColor, radius: shadowRadius)
+        .scaleEffect(scale)
     }
     
     // Левая часть с прогресс-кольцом и иконкой
@@ -485,7 +520,7 @@ struct OptimizedAskezaGridCard: View {
     VStack(spacing: 16) {
         OptimizedAskezaGridCard(
             askeza: Askeza(
-                title: "Бег каждый день",
+                title: "Ежедневные тренировки",
                 intention: "Укрепить тело и дух",
                 duration: .days(30),
                 progress: 15,
@@ -531,21 +566,4 @@ struct OptimizedAskezaGridCard: View {
     }
     .padding()
     .background(Color.gray.opacity(0.1))
-}
-
-// Добавим вспомогательное расширение для создания закругления определенных углов
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
-        return Path(path.cgPath)
-    }
 } 
