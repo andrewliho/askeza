@@ -419,11 +419,7 @@ public class AskezaViewModel: ObservableObject {
             
             // Добавляем аскезу, если она прошла все проверки
             print("✅ AskezaViewModel: Добавлена новая аскеза из шаблона: \(askeza.title)")
-            activeAskezas.append(askeza)
-            saveData()
-            
-            // Обновляем прогресс всех аскез после добавления новой
-            updateAllAskezasProgress(forceUpdate: true)
+            addAskezaToActive(askeza)
             
             // Переключаемся на вкладку Аскез
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -439,8 +435,7 @@ public class AskezaViewModel: ObservableObject {
                               intention: intention,
                               duration: duration,
                               category: category)
-        activeAskezas.append(newAskeza)
-        saveData()
+        addAskezaToActive(newAskeza)
         return newAskeza
     }
     
@@ -718,25 +713,12 @@ public class AskezaViewModel: ObservableObject {
             let components = calendar.dateComponents([.day], from: askeza.startDate, to: now)
             let totalDays = max(0, components.day ?? 0)
             
-            // Обновляем прогресс, если есть изменения или принудительное обновление
-            if forceUpdate || totalDays > askeza.progress {
+            // Обновляем прогресс только если он изменился естественным образом
+            if totalDays > askeza.progress {
                 var updatedAskeza = askeza
+                updatedAskeza.progress = totalDays
                 
-                // Для принудительного обновления увеличиваем на 1 день
-                if forceUpdate && !askeza.isCompleted {
-                    updatedAskeza.progress = askeza.progress + 1
-                    
-                    // Обновляем дату начала для соответствия прогрессу
-                    if let newStartDate = calendar.date(byAdding: .day, value: -(updatedAskeza.progress), to: now) {
-                        updatedAskeza.startDate = newStartDate
-                    }
-                    
-                    print("Принудительное обновление аскезы \(askeza.title): было \(askeza.progress), стало \(updatedAskeza.progress)")
-                } else {
-                    // Обычное обновление на основе даты
-                    updatedAskeza.progress = totalDays
-                    print("Обновление аскезы \(askeza.title): было \(askeza.progress), стало \(updatedAskeza.progress)")
-                }
+                print("Обновление аскезы \(askeza.title): было \(askeza.progress), стало \(updatedAskeza.progress), дата начала не изменена")
                 
                 // Обновляем связанный шаблон, если есть
                 if let templateID = updatedAskeza.templateID {
@@ -820,8 +802,8 @@ public class AskezaViewModel: ObservableObject {
     
     // Тестовый метод для принудительного обновления всех аскез (для отладки)
     public func forceUpdateAllAskezas() {
-        print("Принудительное обновление всех аскез")
-        updateAllAskezasProgress(forceUpdate: true)
+        print("Принудительная проверка завершенности аскез")
+        forceCheckCompletedAskezas()
     }
     
     private func loadData() {
@@ -963,6 +945,15 @@ public class AskezaViewModel: ObservableObject {
     public func addAskezaToActive(_ askeza: Askeza) {
         activeAskezas.append(askeza)
         saveData()
+        
+        // Обновляем только прогресс новой аскезы, не затрагивая существующие
+        if let templateID = askeza.templateID {
+            PracticeTemplateStore.shared.updateProgress(
+                forTemplateID: templateID,
+                daysCompleted: askeza.progress,
+                isCompleted: false
+            )
+        }
     }
     
     // Метод для обновления существующей аскезы
@@ -985,8 +976,8 @@ public class AskezaViewModel: ObservableObject {
     public func updateAskezaStates() {
         print("Обновление состояния аскез")
         
-        // Обновляем прогресс активных аскез
-        updateAllAskezasProgress()
+        // Обновляем прогресс активных аскез, но не принудительно
+        updateAllAskezasProgress(forceUpdate: false)
         
         // Проверяем завершенные аскезы и помечаем их как завершенные, но не перемещаем
         forceCheckCompletedAskezas()
